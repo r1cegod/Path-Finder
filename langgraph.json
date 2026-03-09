@@ -1,0 +1,9 @@
+{
+    "dependencies": [
+        "."
+    ],
+    "graphs": {
+        "purpose_graph": "./backend/purpose_graph.py:purpose_graph"
+    },
+    "env": ".env"
+}

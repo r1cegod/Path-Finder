@@ -1,0 +1,11 @@
+﻿# Python backend
+python-dotenv
+fastapi
+uvicorn
+pydantic
+langgraph
+langchain-openai
+langchain-core
+
+# Phase 2 — web fetching
+httpx
