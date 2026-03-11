@@ -22,7 +22,7 @@ We are building this agent from the ground up (Bottom-Up Law) to master multi-ag
 - [x] Master topology designed (Orchestrator Ascended pattern)
 - [x] State schema locked (4 chronological layers)
 - [x] Gitignore shielded
-- [ ] Tier 1: The Purpose Agent (Drill down) -> **Currently building the scaffold.**
+- [x] Tier 1: The Purpose Agent (Drill down) -> 3-node graph compiled and running.
 - [ ] Tier 2: The Goals Agent
 - [ ] Tier 3: The Job Agent
 - [ ] Tier 4: The Major Agent
@@ -42,5 +42,9 @@ Applying the SEAM method. Building to the junction, seeing what breaks, and fixi
 - Connected LangGraph Studio local server to bypass docker headaches.
 - Started building the `purpose.py` agent. Realized Pydantic models need exact `.model_dump()` to not crash the LangGraph state.
 - Slowly moving from "Thinker" to "Doer" phase, as always haha.
+- Executed massive `/research` protocols on LangGraph Evals and Bootstrapping.
+- Complete System Architecture Audit: Redesigned the Orchestrator with internal Chat Manager nodes, defined "Soft Boundaries" for agent handoffs, and injected `ThinkingProfile` into the graph state.
+- Purged messy dict states. Built new strict Pydantic models (`PurposeProfile`, `MajorProfile`, etc.) in `models.py` and wired them heavily into `state.py`.
+- Currently running `langgraph dev` testing the newly fortified `purpose_graph.py` against the rigid schema.
 
 *Built by Anh Duc*
