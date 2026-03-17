@@ -9,3 +9,6 @@ langchain-core
 
 # Phase 2 — web fetching
 httpx
+
+# Token counting
+tiktoken

@@ -60,7 +60,9 @@ htmlcov/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-GEMINI.md 
+GEMINI.md
 test.py
-
+.claude
+.pyre_configuration
+CLAUDE.md
 

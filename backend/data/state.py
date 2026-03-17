@@ -25,7 +25,7 @@ Orchestrator holds the full state. Agents get compressed handoffs.
 
 from typing import TypedDict, Annotated
 from langgraph.graph import add_messages
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ═══════════════════════════════════════════════════════════
@@ -50,6 +50,9 @@ class StageCheck(BaseModel):
     skipped_stages: list[str]    # user jumped past — triggers soft-rebound next turn
     rebound_pending: bool        # True = Orchestrator must re-visit a skipped stage
     rebound_target: str | None   # which stage to rebound to ("purpose", "goal", ...)
+    stage_blockers: dict = Field(default_factory=dict)
+    # {"purpose": ["key_quote: no direct quote", "risk_philosophy: 0.3 < 0.7"]}
+    # Written every turn. Downstream agents read this — they don't re-scan confidence_scores.
 
 
 class MessageTag(BaseModel):
@@ -61,6 +64,11 @@ class MessageTag(BaseModel):
     #                      socratic  → Socratic question drill
     #                      firm      → troll boundary enforcement
     #                      redirect  → pull user back to stage topic
+    deflection_type: str | None = None
+    # None           → no deflection
+    # "avoidance"    → engages but consistently dodges a specific field (3+ turns)
+    # "compliance"   → answers immediately but answer is surface/generic
+    # "topic_jump"   → pivots to a different stage before current is resolved
 
 
 class UserTag(BaseModel):
@@ -70,6 +78,25 @@ class UserTag(BaseModel):
     burnout_risk: str         # "low" | "moderate" | "high"
     urgency: str              # "low" | "high" — GAOKAO/deadline pressure
     autonomy_conflict: bool   # user wants freedom, constraints say otherwise
+
+    # ─ Psychological architecture ───────────────────────────
+    # Safe defaults: assume externally-defined until proven otherwise.
+    self_authorship: str = "externally_defined"
+    # "externally_defined" → choices driven by family/scores/society; face-value answers untrustworthy
+    # "transitioning"      → developing own voice; handle with Socratic scaffolding
+    # "self_authored"      → genuine internal compass; answers can be taken at face value
+
+    compliance_signal: bool = False
+    # True = student gives socially acceptable answers ("I want to help society")
+    #      ≠ genuine ("I want money and don't want to work for anyone")
+    # When True: ALL extracted FieldEntry confidence scores are suspect.
+    # Counselor must probe the gap between stated answer and underlying reality.
+
+    core_tension: str | None = None
+    # The single unresolved conflict blocking real progress.
+    # e.g. "high-achiever identity vs. desire for non-traditional path"
+    # e.g. "parents want medicine → student profile points to design"
+    # When set: all downstream agents orient toward surfacing this tension.
 
 
 class ProfileSummary(BaseModel):
@@ -174,6 +201,8 @@ class PathFinderState(TypedDict):
     # Agents read THEIR OWN slot here — not the raw global message history.
     # Orchestrator reads ALL slots for full context.
 
+    summary: str
+
     # Per-agent message queues (tagged slices of global history)
     purpose_message: Annotated[list, add_messages]
     goals_message: Annotated[list, add_messages]
@@ -209,51 +238,36 @@ class PathFinderState(TypedDict):
     path: PathProfile | None
     # Stage 6. Terminal path synthesis by path_agent.
 
-    track: str | None
-    # "A" | "B" | "C" — set by scope/thinking agent early on.
-
-    country_scope: str | None
-    # "vietnam" | "abroad" | "both" — set by scope agent.
-
-    # ─── LAYER 3: SCORES ───────────────────────────────────
-    confidence_scores: dict
-    # Per-stage aggregate confidence. {"purpose": 0.8, "goals": 0.6, ...}
-    # Stage Manager reads this to decide advance/hold.
-    # Written ONLY by the Scoring Node inside each subagraph.
-
-    fit_score: int
-
-    # ─── LAYER 4: SYSTEM META ─────────────────────────────
+    # ─── LAYER 3: SYSTEM META ─────────────────────────────
     message_tag: MessageTag | None
     # Per-turn output modifier. Set by Orchestrator Tagger. Resets each turn.
 
     user_tag: UserTag | None
     # Persistent output modifier. Set once, updated as context grows.
-
-    active_tags: list[str]
-    # Set by Agent Tagger. e.g. ["purpose", "job"]
-    # Controls which subagents fire this turn.
-
-    current_agent: str
-    # Which agent is currently active. Set by Orchestrator.
-
-    escalation_flags: list[str]
-    # ["contradiction_purpose_job", "troll_escalation", ...]
-
+    
     troll_warnings: int
     # 0–3. Terminate session at 3.
-
-    uni_data: list[dict]
-    # Loaded by Research Agent from JSON / vector store.
 
     verdict: dict | None
     # Final cross-agent verdict. {"purpose": "APPROVE", "job": "REJECT: ...", ...}
 
+    limit_hit: bool
+    thinking_limit: bool
+    purpose_limit: bool
+    goal_limit: bool
+    job_limit: bool
+    major_limit: bool
+    uni_limit: bool
+    path_limit: bool
+    input_token: int
+
+    active_tags: list[str]
 
 # ─── DEFAULT STATE (used when creating a new session) ──────
 DEFAULT_STATE: PathFinderState = {
     "messages": [],
     "profile_summary": ProfileSummary(),
+    "summary": "",
     "purpose_message": [],
     "goals_message": [],
     "job_message": [],
@@ -268,16 +282,18 @@ DEFAULT_STATE: PathFinderState = {
     "major": None,
     "university": None,
     "path": None,
-    "track": None,
-    "country_scope": None,
-    "confidence_scores": {},
-    "fit_scores": {},
     "message_tag": None,
     "user_tag": None,
     "active_tags": [],
-    "current_agent": "orchestrator",
-    "escalation_flags": [],
     "troll_warnings": 0,
-    "uni_data": [],
     "verdict": None,
+    "limit_hit": False,
+    "thinking_limit": False,
+    "purpose_limit": False,
+    "goal_limit": False,
+    "job_limit": False,
+    "major_limit": False,
+    "uni_limit": False,
+    "path_limit": False,
+    "input_token": 0
 }

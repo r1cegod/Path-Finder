@@ -37,8 +37,9 @@ TF are you doing?
 Applying the SEAM method. Building to the junction, seeing what breaks, and fixing it. I'm forcing the AI to give me only the `???` scaffolds so I have to actually write the logic bodies myself. No copy-pasting answers. 
 
 ### Logs:
-- Day 1: Mapped the massive 8-agent topology. Realized I need to build from the bottom up or it will become a tangled mess.
-- Dialed in the Antigravity Engine: Refined the X-Ray doc tools and forced the AI to only give me scaffolds (`???`) so I don't get robbed of the learning gap.
+See [DEV_DIARY.md](DEV_DIARY.md)
+- Mapped the massive 8-agent topology. Realized I need to build from the bottom up or it will become a tangled mess.
+- Dialed in the Antigravity Engine: Refined the X-Ray doc tools and forced the AI to only give me "official docs" so I don't get robbed of the learning gap.
 - Connected LangGraph Studio local server to bypass docker headaches.
 - Started building the `purpose.py` agent. Realized Pydantic models need exact `.model_dump()` to not crash the LangGraph state.
 - Slowly moving from "Thinker" to "Doer" phase, as always haha.

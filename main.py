@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.purpose_graph import graph
+from backend.purpose_graph import purpose_graph
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,6 +20,6 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat_invoke(request: ChatRequest):
     state = {"messages": [{"role": "user", "content": request.message}]}
-    result = graph.invoke(state)
+    result = purpose_graph.invoke(state)
     response = result["messages"][-1].content
     return {"response": response}
