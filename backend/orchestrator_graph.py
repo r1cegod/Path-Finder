@@ -6,27 +6,36 @@ from pydantic import BaseModel, ConfigDict
 from backend.data.state import PathFinderState, StageCheck, MessageTag, UserTag
 from backend.data.prompts.orchestrator import INPUT_PARSER_PROMPT, SUMMARIZER_PROMPT
 from dotenv import load_dotenv
-import os, tiktoken, json
+import os, tiktoken
 
 #prep
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 memory = MemorySaver()
-TOKEN_CAP = 4000
+TOKEN_CAP = 500
 _enc = tiktoken.encoding_for_model("gpt-5")
 
 #def output
 class InputOutputStyle(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    stage_check: StageCheck
+    deflection_reasoning: str
+    tension_reasoning: str
+    stage_related: list[str]
+    forced_stage: str
     message_tag: MessageTag
     user_tag: UserTag
-    active_tags: list[str]
 
 #llm
-llm = ChatOpenAI(model="gpt-5.2", temperature=0.5)
-low_llm = ChatOpenAI(model="gpt-5-mini")
+llm = ChatOpenAI(model="gpt-5.4", temperature=0.5)
+low_llm = ChatOpenAI(model="gpt-5.4-mini")
 input_llm = llm.with_structured_output(InputOutputStyle)
+
+#dict to object
+def get_stage(state: PathFinderState) -> StageCheck:
+    raw = state.get("stage") or {}
+    if isinstance(raw, dict):
+        return StageCheck(**raw)
+    return raw
 
 #nodes
 def check_node(state: PathFinderState) -> dict:
@@ -55,23 +64,27 @@ def summarizer_node(state: PathFinderState) -> dict:
     }
 
 def input_parser(state: PathFinderState):
-    stage_check = state.get("stage_check") or {}
+    stage_got = get_stage(state)
     profile_summary = state.get("profile_summary") or {}
     user_tag = state.get("user_tag") or {}
-    troll_warnings = state.get("troll_warnings")
+    troll_warnings = state.get("troll_warnings") or 0
     response = input_llm.invoke(
         [SystemMessage(INPUT_PARSER_PROMPT.format(
-            stage_check = stage_check,
             profile_summary = profile_summary,
             user_tag = user_tag,
             troll_warnings = troll_warnings
         ))] + state["messages"]
     )
+    stage = stage_got.model_copy(update={
+        "stage_related": response.stage_related,
+        "forced_stage": response.forced_stage
+    })
     return {
-        "stage_check": response.stage_check.model_dump(),
+        "tension_reasoning": response.tension_reasoning,
+        "deflection_reasoning": response.deflection_reasoning,
+        "stage": stage.model_dump(),
         "message_tag": response.message_tag.model_dump(),
         "user_tag":    response.user_tag.model_dump(),
-        "active_tags": response.active_tags,
     }
 
 #edge

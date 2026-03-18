@@ -35,7 +35,7 @@ class ConfidenOutput(BaseModel):
     purpose: PurposeProfile
 
 #llm
-llm = ChatOpenAI(model="gpt-5-mini")
+llm = ChatOpenAI(model="gpt-5.4-mini")
 structured_llm = llm.with_structured_output(PurposeOutput)
 summary_llm = llm.with_structured_output(SummaryOutput)
 confident_llm = llm.with_structured_output(ConfidenOutput)

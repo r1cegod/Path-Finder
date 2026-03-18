@@ -3,7 +3,8 @@
         "."
     ],
     "graphs": {
-        "purpose_graph": "./backend/purpose_graph.py:purpose_graph"
+        "purpose_graph": "./backend/purpose_graph.py:purpose_graph",
+        "input_orchestrator": "./backend/orchestrator_graph.py:input_orchestrator"
     },
     "env": ".env"
 }

@@ -125,11 +125,11 @@ Before the Output Agent writes the final recommendation, the Orchestrator forces
 ---
 
 ## 4. Current Implementation State
-**Status: `state.py` FINALIZED.** All Pydantic models defined and import-verified.
-
-**Active Focus:** `purpose_graph.py` — align `ConfidentDict` Pydantic output to new `PurposeProfile` model so `confident_node` writes `.model_dump()` back to `purpose` field correctly.
+**DONE:** `state.py` finalized (all Pydantic models). `purpose_graph.py` wired + tested in LangSmith. `orchestrator_graph.py` wired (input_parser + summarizer + check), prompt audited against production doc, reasoning fields added to `InputOutputStyle`.
+**IN PROGRESS:** `stage_manager` node — pure Python routing logic (4 cases: normal, rebound, contradict, forced). Uses `Command` from `langgraph.types`.
+**NEXT:** `thinking_graph.py` — 16 Personalities + Gardner MI tests as priors, thinking agent validates via behavioral inference. Then Goals Agent (same subgraph pattern as purpose).
 
 ## 5. Known Bugs / Friction Points
-- **Pydantic mapping:** Direct assignment of Pydantic Structured Outputs into `TypedDict` states can crash LangGraph type checkers. Ensure each agent explicitly executes `.model_dump()` before state return.
-- **Sequential vs Parallel:** The agent chain is sequential (purpose → goal → job → major → uni). Ensure LangGraph edges are `add_edge` (sequential), NOT `add_conditional_edges` with Send (parallel) for the counseling chain.
-- **`path_agent`:** This is a NEW terminal agent that synthesizes the final path recommendation. It is NOT the same as the Output Compiler. The Compiler just merges output text. `path_agent` synthesizes the structured PATH object.
+- **Prompt/schema drift:** `orchestrator.py` prompt `<output_format>` still shows the old `stage_check` JSON schema with `completed_stages`/`stage_blockers` fields. Needs updating to match new `StageCheck` model (`stage_related`, `rebound`, `contradict`, `forced_stage`, `stage_skipped`).
+- **`active_tags` ownership:** Currently in both `InputOutputStyle` (LLM sets it) and `stage_manager` (should derive it from routing logic). Need to decide: LLM or Python? If Python, remove from `InputOutputStyle`.
+- **`path_agent`:** Terminal agent that synthesizes the final path recommendation. NOT the same as Output Compiler. Not yet built.

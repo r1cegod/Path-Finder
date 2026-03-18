@@ -25,7 +25,7 @@ Orchestrator holds the full state. Agents get compressed handoffs.
 
 from typing import TypedDict, Annotated
 from langgraph.graph import add_messages
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ═══════════════════════════════════════════════════════════
@@ -43,17 +43,6 @@ class FieldEntry(BaseModel):
 # ═══════════════════════════════════════════════════════════
 #  ROUTING + OUTPUT MODIFIERS
 # ═══════════════════════════════════════════════════════════
-
-class StageCheck(BaseModel):
-    current_stage: str           # "thinking"|"purpose"|"goal"|"job"|"major"|"uni"|"path"
-    completed_stages: list[str]  # stages locked (confidence > 0.7 across all fields)
-    skipped_stages: list[str]    # user jumped past — triggers soft-rebound next turn
-    rebound_pending: bool        # True = Orchestrator must re-visit a skipped stage
-    rebound_target: str | None   # which stage to rebound to ("purpose", "goal", ...)
-    stage_blockers: dict = Field(default_factory=dict)
-    # {"purpose": ["key_quote: no direct quote", "risk_philosophy: 0.3 < 0.7"]}
-    # Written every turn. Downstream agents read this — they don't re-scan confidence_scores.
-
 
 class MessageTag(BaseModel):
     # ─ Per-message output modifier ─────────────────────────
@@ -120,6 +109,7 @@ class ProfileSummary(BaseModel):
 class ThinkingProfile(BaseModel):
     # ─ Stage 0: How does this human operate? ───────────────
     # Required by Major Agent + Uni Agent for curriculum/campus fit.
+    done: bool
     learning_mode: FieldEntry    # "visual" | "hands-on" | "theoretical"
     env_constraint: FieldEntry   # "home" | "campus" | "flexible"
     social_battery: FieldEntry   # "solo" | "small-team" | "collaborative"
@@ -128,6 +118,7 @@ class ThinkingProfile(BaseModel):
 class PurposeProfile(BaseModel):
     # ─ Stage 1: WHY do they want anything at all? ──────────
     # Core motivation layer. Goal/Job/Major agents read this to calibrate fit.
+    done: bool
     core_desire: FieldEntry       # wealth | impact | creative control | freedom from X
     work_relationship: FieldEntry # "calling" | "stepping stone" | "necessary evil"
     ai_stance: FieldEntry         # "fear" | "leverage" | "indifferent"
@@ -138,6 +129,7 @@ class PurposeProfile(BaseModel):
 
 class GoalsLongProfile(BaseModel):
     # ─ Stage 2a: Long-term horizon (5–10 year) ─────────────
+    done: bool
     income_target: FieldEntry     # concrete number + timeframe ("$5k/mo by 28")
     autonomy_level: FieldEntry    # "full" | "partial" | "employee"
     ownership_model: FieldEntry   # "founder" | "partner" | "freelance" | "employee"
@@ -146,6 +138,7 @@ class GoalsLongProfile(BaseModel):
 
 class GoalsShortProfile(BaseModel):
     # ─ Stage 2b: Short-term horizon (next 1–2 years) ───────
+    done: bool
     skill_targets: FieldEntry     # specific skills to acquire now
     portfolio_goal: FieldEntry    # what they want to show in 1 year
     credential_needed: FieldEntry # "degree" | "cert" | "portfolio-only"
@@ -155,12 +148,14 @@ class GoalsProfile(BaseModel):
     # ─ Stage 2: WRAPPER — both horizons under one state key ─
     # State holds: goals: GoalsProfile | None
     # Goal Agent writes long/short independently; wrapper keeps them atomic.
+    done: bool
     long: GoalsLongProfile | None   # None until Scoring Node extracts it
     short: GoalsShortProfile | None # None until Scoring Node extracts it
 
 
 class JobProfile(BaseModel):
     # ─ Stage 3: WHERE do they land after school? ───────────
+    done: bool
     role_category: FieldEntry   # "engineer" | "founder" | "researcher" | "creative"
     company_stage: FieldEntry   # "startup" | "scaleup" | "corp" | "self"
     day_to_day: FieldEntry      # what the actual daily work looks like
@@ -169,6 +164,7 @@ class JobProfile(BaseModel):
 
 class MajorProfile(BaseModel):
     # ─ Stage 4: HOW do they get qualified? ─────────────────
+    done: bool
     field: FieldEntry                    # "CS" | "Business" | "Design" | ...
     curriculum_style: FieldEntry         # "theory-heavy" | "project-based" | "mixed"
     required_skills_coverage: FieldEntry # does this major cover what JobProfile needs?
@@ -178,6 +174,7 @@ class PathProfile(BaseModel):
     # ─ Stage 6: Terminal synthesis (path_agent ONLY) ───────
     # path_agent reads ALL profiles and synthesizes the final recommendation.
     # This is NOT the Output Compiler. Compiler merges text. path_agent builds this object.
+    done: bool
     track: str                    # "A" (uni required) | "B" (optional) | "C" (not needed)
     recommended_uni: str | None   # None if track == "C"
     recommended_major: str | None
@@ -185,6 +182,14 @@ class PathProfile(BaseModel):
     timeline: str                 # "4-year plan" narrative
     confidence: float             # overall path confidence 0.0–1.0
 
+class StageCheck(BaseModel):
+    stage_related: list[str]
+    rebound: bool
+    current_stage: str
+    contradict: bool
+    contradict_target: list[str]
+    forced_stage: str
+    stage_skipped: list[str]
 
 # ═══════════════════════════════════════════════════════════
 #  LANGGRAPH STATE
@@ -202,6 +207,8 @@ class PathFinderState(TypedDict):
     # Orchestrator reads ALL slots for full context.
 
     summary: str
+    deflection_reasoning: str
+    tension_reasoning: str
 
     # Per-agent message queues (tagged slices of global history)
     purpose_message: Annotated[list, add_messages]
@@ -212,7 +219,7 @@ class PathFinderState(TypedDict):
     thinking_style_message: Annotated[list, add_messages]
 
     # ─── LAYER 2: EXTRACTED PROFILE ────────────────────────
-    stage_check: StageCheck | None
+    stage: StageCheck
     # Routing + soft-rebound metadata. Set by Orchestrator Tagger each turn.
 
     thinking: ThinkingProfile | None
@@ -268,13 +275,15 @@ DEFAULT_STATE: PathFinderState = {
     "messages": [],
     "profile_summary": ProfileSummary(),
     "summary": "",
+    "deflection_reasoning": "",
+    "tension_reasoning": "",
     "purpose_message": [],
     "goals_message": [],
     "job_message": [],
     "major_message": [],
     "uni_message": [],
     "thinking_style_message": [],
-    "stage_check": None,
+    "stage_related": [],
     "thinking": None,
     "purpose": None,
     "goals": None,
