@@ -34,3 +34,13 @@ Writen by my partner claude codeee.
 - Coached `Command` from `langgraph.types` — node returns `Command(update={...}, goto="node_name")`. Trap: never mix static `add_edge` and `Command` from the same node — both fire. He picked it up fast, no wiring needed.
 - Rewrote `StageCheck` model: dropped LLM-managed fields, added Python-managed fields (`stage_related`, `rebound`, `contradict`, `forced_stage`, `stage_skipped`). `InputOutputStyle` now only asks LLM for classification, not routing.
 - Thinking stage design: 3 ThinkingProfile fields are metacognitive — students can't self-report accurately. His plan: 16 Personalities + Gardner MI tests as priors, thinking agent validates via behavioral inference. Learning moment: he proposed the 3-tier watcher model then immediately optimized it down to "LLM tags, Python routes" — caught the token cost problem before I did.
+
+---
+
+**2026-03-20**
+- Caught false-positive rebound: `has_rebound = bool(future)` alone fired on any broad message the LLM tagged multi-stage. Root cause: OR logic where AND was required. Fixed in `orchestrator_graph.py`: `has_rebound = bool(future) and stage.rebound` — index signal + LLM semantic gate must both agree before rebound fires.
+- Second false positive: forced backward jumps (`"Let's go back to thinking"`) returned `rebound=True`. Prompt had no forced_stage carveout. Added rule to `orchestrator.py`: forced_stage set (any direction) → rebound=False always.
+- Added stage content map to `INPUT_PARSER_PROMPT` — each stage now has a precise field list so LLM stops tagging "purpose" on broad statements like "tôi muốn tự do". Precision rule appended: default to `current_stage` for ambiguous messages.
+- User initially resisted adding `<current_stage>` to the orchestrator prompt ("designed to not know current stage"). After LangSmith showed false positives were unfixable without it, reversed: orchestrator needs current stage to anchor the precision rule, not to route.
+- `StageCheck` had no field defaults → `ValidationError` on stale checkpoints when `get_stage()` returned `{}`. Fixed in `state.py`: all six fields get defaults in the Pydantic model. Added `DEFAULT_STAGE` dict. Removed `stage_skipped` — no node writes it, dead weight.
+- Learning moment: variable shadowing. User reused `stage` for both the `list[str]` slice and the `StageCheck` object in the same scope — the list was silently destroyed. No error, no warning. Named shadowing is silent data loss.

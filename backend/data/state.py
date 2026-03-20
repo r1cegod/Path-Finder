@@ -183,13 +183,12 @@ class PathProfile(BaseModel):
     confidence: float             # overall path confidence 0.0–1.0
 
 class StageCheck(BaseModel):
-    stage_related: list[str]
-    rebound: bool
-    current_stage: str
-    contradict: bool
-    contradict_target: list[str]
-    forced_stage: str
-    stage_skipped: list[str]
+    stage_related: list[str] = []
+    rebound: bool = False
+    current_stage: str = "thinking"
+    contradict: bool = False
+    contradict_target: list[str] = []
+    forced_stage: str = ""
 
 # ═══════════════════════════════════════════════════════════
 #  LANGGRAPH STATE
@@ -271,6 +270,15 @@ class PathFinderState(TypedDict):
     active_tags: list[str]
 
 # ─── DEFAULT STATE (used when creating a new session) ──────
+DEFAULT_STAGE = {
+    "stage_related": [],
+    "rebound": False,
+    "current_stage": "thinking",
+    "contradict": False,
+    "contradict_target": [],
+    "forced_stage": "",
+}
+
 DEFAULT_STATE: PathFinderState = {
     "messages": [],
     "profile_summary": ProfileSummary(),
@@ -283,7 +291,7 @@ DEFAULT_STATE: PathFinderState = {
     "major_message": [],
     "uni_message": [],
     "thinking_style_message": [],
-    "stage_related": [],
+    "stage": DEFAULT_STAGE,
     "thinking": None,
     "purpose": None,
     "goals": None,

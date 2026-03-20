@@ -125,11 +125,10 @@ Before the Output Agent writes the final recommendation, the Orchestrator forces
 ---
 
 ## 4. Current Implementation State
-**DONE:** `state.py` finalized (all Pydantic models). `purpose_graph.py` wired + tested in LangSmith. `orchestrator_graph.py` wired (input_parser + summarizer + check), prompt audited against production doc, reasoning fields added to `InputOutputStyle`.
-**IN PROGRESS:** `stage_manager` node — pure Python routing logic (4 cases: normal, rebound, contradict, forced). Uses `Command` from `langgraph.types`.
-**NEXT:** `thinking_graph.py` — 16 Personalities + Gardner MI tests as priors, thinking agent validates via behavioral inference. Then Goals Agent (same subgraph pattern as purpose).
+**DONE:** `state.py` finalized (all Pydantic models, `StageCheck` defaults, `DEFAULT_STAGE`). `purpose_graph.py` wired + tested in LangSmith. `orchestrator_graph.py` fully wired (check → input_parser → stage_manager → END). Prompt audited: stage content map, precision rule, rebound semantic gate, forced_stage carveout, injection defense.
+**NEXT:** `thinking_graph.py` — 16 Personalities + Gardner MI as priors, thinking agent validates via behavioral inference. Then Goals Agent (same subgraph pattern as purpose).
 
 ## 5. Known Bugs / Friction Points
-- **Prompt/schema drift:** `orchestrator.py` prompt `<output_format>` still shows the old `stage_check` JSON schema with `completed_stages`/`stage_blockers` fields. Needs updating to match new `StageCheck` model (`stage_related`, `rebound`, `contradict`, `forced_stage`, `stage_skipped`).
-- **`active_tags` ownership:** Currently in both `InputOutputStyle` (LLM sets it) and `stage_manager` (should derive it from routing logic). Need to decide: LLM or Python? If Python, remove from `InputOutputStyle`.
+- **`profile_summary` format bug:** `input_parser` passes `profile_summary` raw to `.format()`. If it's a `ProfileSummary` Pydantic object (not `{}`), it renders as a Pydantic repr string in LLM context. Needs `.model_dump()` or explicit field extraction before format call.
+- **`active_tags` ownership:** Currently absent from `InputOutputStyle` (LLM no longer sets it) but still in `PathFinderState`. No node writes it. Needs to be derived by output handler from `stage_manager` routing signals, or removed.
 - **`path_agent`:** Terminal agent that synthesizes the final path recommendation. NOT the same as Output Compiler. Not yet built.
