@@ -180,8 +180,8 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Derived from real state — survives tab switches
-  const miSubmitted = appState?.thinking?.brain_type != null;
-  const riasecSubmitted = appState?.thinking?.riasec_top != null;
+  const miSubmitted = (appState?.thinking?.brain_type?.length ?? 0) > 0;
+  const riasecSubmitted = (appState?.thinking?.riasec_top?.length ?? 0) > 0;
 
   const handleMiAnswer = (id, value) => {
     setMiAnswers(prev => ({ ...prev, [id]: value }));

@@ -8,7 +8,7 @@ export default function NeuralInterface({ messages, isLoading, onSend }) {
       <div className="h-11 flex-shrink-0 flex items-center justify-between px-4 border-b border-subtle">
         <div className="flex gap-2 items-center">
           <FolderOpen className="w-[12px] h-[12px] text-text-muted" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-sec">GIAO DIỆN THẦN KINH</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-sec">GIAO DIỆN</span>
         </div>
         <span className="font-mono text-[10px] text-text-muted tracking-[0.05em]">v1.0.4-LTS</span>
       </div>

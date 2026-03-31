@@ -2,11 +2,26 @@ export default function MessageBubble({ message }) {
   const { role, content, timestamp } = message;
   const fmt = (d) => d.toTimeString().slice(0, 8);
 
+  const formatContent = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        return (
+          <span key={index} className="text-accent-amber font-bold">
+            {part.slice(2, -2)}
+          </span>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   if (role === 'assistant') {
     return (
       <div className="flex flex-col">
-        <div className="font-mono text-[13px] text-sys-msg leading-relaxed break-words break-all whitespace-pre-wrap">
-          {content}
+        <div className="font-mono text-[13px] text-sys-msg leading-relaxed break-words whitespace-pre-wrap">
+          {formatContent(content)}
         </div>
         <div className="flex justify-end mt-2">
           <span className="font-mono text-[10px] text-text-muted tracking-[0.05em]">
@@ -20,8 +35,8 @@ export default function MessageBubble({ message }) {
   return (
     <div className="flex justify-end">
       <div className="flex flex-col max-w-[85%]">
-        <div className="bg-elevated border border-subtle rounded-lg rounded-tr-sm px-4 py-3 font-sans text-[14px] text-text-pri break-words break-all whitespace-pre-wrap">
-          {content}
+        <div className="bg-elevated border border-subtle rounded-lg rounded-tr-sm px-4 py-3 font-sans text-[14px] text-text-pri break-words whitespace-pre-wrap">
+          {formatContent(content)}
         </div>
         <div className="flex justify-end mt-2">
           <span className="font-mono text-[10px] text-text-muted tracking-[0.05em]">
