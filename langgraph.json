@@ -3,7 +3,12 @@
         "."
     ],
     "graphs": {
+        "thinking_graph": "./backend/thinking_graph.py:thinking_graph",
         "purpose_graph": "./backend/purpose_graph.py:purpose_graph",
+        "goals_graph": "./backend/goals_graph.py:goals_graph",
+        "job_graph": "./backend/job_graph.py:job_graph",
+        "major_graph": "./backend/major_graph.py:major_graph",
+        "uni_graph": "./backend/uni_graph.py:uni_graph",
         "input_orchestrator": "./backend/orchestrator_graph.py:input_orchestrator"
     },
     "env": ".env"

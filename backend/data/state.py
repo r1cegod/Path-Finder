@@ -12,14 +12,14 @@ Orchestrator holds the full state. Agents get compressed handoffs.
  StageCheck                           ← routing + soft-rebound meta
  MessageTag                           ← per-message output modifier
  UserTag                              ← persistent user constraint modifier
- ProfileSummary                       ← per-stage running context summaries
+ StageReasoning                       ← per-stage running context summaries
  ThinkingProfile                      ← how user learns / operates
  PurposeProfile                       ← WHY they want anything
  GoalsLongProfile  ─┐
  GoalsShortProfile  ├─► GoalsProfile  ← WHAT they want (both horizons unified)
  JobProfile                           ← WHERE they land
  MajorProfile                         ← HOW they get qualified
- PathProfile                          ← terminal synthesis
+ PathProfile                          ← debate arc state (not data-collection)
 ─────────────────────────────────────────────────────────────
 """
 
@@ -46,49 +46,69 @@ class FieldEntry(BaseModel):
 
 class MessageTag(BaseModel):
     # ─ Per-message output modifier ─────────────────────────
-    # Set by Orchestrator Tagger each turn. Does NOT persist across turns.
-    message_type: str    # "true" | "vague" | "troll"
-    drill_required: bool # True → active agent must probe this turn, not accept answer
-    response_tone: str   # "socratic" | "firm" | "redirect"
-    #                      socratic  → Socratic question drill
-    #                      firm      → troll boundary enforcement
-    #                      redirect  → pull user back to stage topic
-    deflection_type: str | None = None
-    # None           → no deflection
-    # "avoidance"    → engages but consistently dodges a specific field (3+ turns)
-    # "compliance"   → answers immediately but answer is surface/generic
-    # "topic_jump"   → pivots to a different stage before current is resolved
+    # Set by Orchestrator each turn. Does NOT persist across turns.
+    model_config = ConfigDict(extra="forbid")
+    message_type: str = "true"
+    # "true"          → genuine, on-topic answer
+    # "vague"         → long but empty, surface-level content
+    # "troll"         → not engaging, adversarial
+    # "genuine_update"→ student explicitly revised a past answer (celebrate, do NOT probe)
+    # "disengaged"    → short + meaningless, student checked out
+    # "avoidance"     → engages but dodges a specific field
+    # "compliance"    → answers immediately but answer is social/generic script
+    user_drill: bool = False       # True → answer needs more depth this turn
+    user_drill_reason: str = ""    # WHY depth needed — injected into USER_DRILL_BLOCK
+    response_tone: str = "socratic"
+    # "socratic" → Socratic question drill
+    # "firm"     → troll boundary enforcement
+    # "redirect" → pull user back to stage topic
 
 
 class UserTag(BaseModel):
-    # ─ Persistent user constraint modifier ─────────────────
-    # Set once and updated as context reveals more. Survives across turns.
-    parental_pressure: bool   # external authority forcing a path
-    burnout_risk: str         # "low" | "moderate" | "high"
-    urgency: str              # "low" | "high" — GAOKAO/deadline pressure
-    autonomy_conflict: bool   # user wants freedom, constraints say otherwise
+    # ─ Persistent user modifier ────────────────────────────
+    # Orchestrator writes ALL fields EVERY turn (reasoning lock).
+    # bool = True  → concern detected, reasoning string injected into output block
+    # bool = False → reasoning ignored, block not injected
+    model_config = ConfigDict(extra="forbid")
 
-    # ─ Psychological architecture ───────────────────────────
-    # Safe defaults: assume externally-defined until proven otherwise.
-    self_authorship: str = "externally_defined"
-    # "externally_defined" → choices driven by family/scores/society; face-value answers untrustworthy
-    # "transitioning"      → developing own voice; handle with Socratic scaffolding
-    # "self_authored"      → genuine internal compass; answers can be taken at face value
+    # ─── PSYCHOLOGICAL FLAGS (bool + reasoning) ────────────
+    parental_pressure: bool = False
+    parental_pressure_reasoning: str = ""
+    # e.g. "Mother insists on medical school, father defers to mother"
 
-    compliance_signal: bool = False
-    # True = student gives socially acceptable answers ("I want to help society")
-    #      ≠ genuine ("I want money and don't want to work for anyone")
-    # When True: ALL extracted FieldEntry confidence scores are suspect.
-    # Counselor must probe the gap between stated answer and underlying reality.
+    burnout_risk: bool = False
+    burnout_risk_reasoning: str = ""
+    # e.g. "Student mentions 4hr sleep, multiple extracurriculars, voice fatigue"
 
-    core_tension: str | None = None
-    # The single unresolved conflict blocking real progress.
-    # e.g. "high-achiever identity vs. desire for non-traditional path"
-    # e.g. "parents want medicine → student profile points to design"
-    # When set: all downstream agents orient toward surfacing this tension.
+    urgency: bool = False
+    urgency_reasoning: str = ""
+    # e.g. "GAOKAO in 2 months, application deadline driving all decisions"
+
+    core_tension: bool = False
+    core_tension_reasoning: str = ""
+    # e.g. "High-achiever identity vs. desire for non-traditional creative path"
+
+    # ─── SELF-AUTHORSHIP (str only, spectrum) ──────────────
+    self_authorship: str = ""
+    # Empty = no block injected.
+    # Non-empty = reasoning injected into SELF_AUTHORSHIP_BLOCK.
+    # e.g. "Student exclusively uses 'bố mẹ muốn' framing, no personal voice detected"
+
+    # ─── BEHAVIORAL REASONING (str only, no bool) ──────────
+    # Detection lives in MessageTag.message_type. Reasoning persists here.
+    reality_gap: bool = False
+    # Set by orchestrator. True when ambition vs. evidence diverges.
+    # Only clears when orchestrator explicitly sets False.
+    reality_gap_reasoning: str = ""
+    # Orchestrator UPDATES (appends/refines) when reality_gap=True. Persists until explicitly cleared.
+    # Output compiler reads: if reality_gap=True → inject REALITY_GAP_BLOCK with this reasoning.
+    compliance_reasoning:       str = ""
+    disengagement_reasoning:    str = ""
+    avoidance_reasoning:        str = ""
+    vague_reasoning:            str = ""
 
 
-class ProfileSummary(BaseModel):
+class StageReasoning(BaseModel):
     # ─ Per-stage running context summaries ─────────────────
     # Each stage agent writes its OWN slot. Orchestrator reads ALL slots.
     # Agents receive their own slot instead of the full message history.
@@ -99,7 +119,6 @@ class ProfileSummary(BaseModel):
     job: str  = ""   # JobProfile agent's summary
     major: str  = ""   # MajorProfile agent's summary
     uni: str = ""
-    path: str = ""
 
 
 # ═══════════════════════════════════════════════════════════
@@ -113,6 +132,11 @@ class ThinkingProfile(BaseModel):
     learning_mode: FieldEntry    # "visual" | "hands-on" | "theoretical"
     env_constraint: FieldEntry   # "home" | "campus" | "flexible"
     social_battery: FieldEntry   # "solo" | "small-team" | "collaborative"
+    personality_type: FieldEntry # "analytical" | "creative" | "social" | "builder" | "leader"
+    brain_type: list[str] = []   # MI types scoring 80+, set by frontend quiz (e.g., logical, kinesthetic)
+    riasec_top: list[str] = []   # Top 2 RIASEC codes, set by frontend quiz (e.g., ["I", "R"])
+    # Values: R | I | A | S | E | C  — no mapping, raw codes passed to thinking agent
+    riasec_scores: list[str] = [] # Top 2-3 Holland Codes from frontend quiz (e.g., ["Realistic", "Investigative"])
 
 
 class PurposeProfile(BaseModel):
@@ -122,7 +146,7 @@ class PurposeProfile(BaseModel):
     core_desire: FieldEntry       # wealth | impact | creative control | freedom from X
     work_relationship: FieldEntry # "calling" | "stepping stone" | "necessary evil"
     ai_stance: FieldEntry         # "fear" | "leverage" | "indifferent"
-    location_vision: FieldEntry   # "remote" | "relocate to US" | "tied to hometown"
+    location_vision: FieldEntry   # "remote" | "relocate abroad" | "tied to hometown"
     risk_philosophy: FieldEntry   # "startup risk" | "corporate ladder" | "gov stability"
     key_quote: FieldEntry         # verbatim quote capturing their core essence
 
@@ -170,25 +194,24 @@ class MajorProfile(BaseModel):
     required_skills_coverage: FieldEntry # does this major cover what JobProfile needs?
 
 
-class PathProfile(BaseModel):
-    # ─ Stage 6: Terminal synthesis (path_agent ONLY) ───────
-    # path_agent reads ALL profiles and synthesizes the final recommendation.
-    # This is NOT the Output Compiler. Compiler merges text. path_agent builds this object.
+class UniProfile(BaseModel):
+    # ─ Stage 5: WHERE do they study? ───────────────────────
     done: bool
-    track: str                    # "A" (uni required) | "B" (optional) | "C" (not needed)
-    recommended_uni: str | None   # None if track == "C"
-    recommended_major: str | None
-    recommended_job: str
-    timeline: str                 # "4-year plan" narrative
-    confidence: float             # overall path confidence 0.0–1.0
+    prestige_requirement: FieldEntry  # e.g., "top-tier" | "mid-tier" | "irrelevant"
+    target_school: FieldEntry         # Specific school name
+    campus_format: FieldEntry         # e.g., "domestic" | "international"
+    is_domestic: bool                 # True if Vietnamese school. Output Compiler strictly warns if False.
+
 
 class StageCheck(BaseModel):
+    # ─ Routing metadata (LLM classifies, Python reads) ───
     stage_related: list[str] = []
     rebound: bool = False
     current_stage: str = "thinking"
     contradict: bool = False
     contradict_target: list[str] = []
     forced_stage: str = ""
+    # contradict_count + rebound_count → moved to top-level state (Python-only)
 
 # ═══════════════════════════════════════════════════════════
 #  LANGGRAPH STATE
@@ -200,14 +223,15 @@ class PathFinderState(TypedDict):
     # Auto-appends via LangGraph's add_messages reducer.
     # Returning {"messages": [new_msg]} APPENDS — it does NOT overwrite.
 
-    profile_summary: ProfileSummary
+    stage_reasoning: StageReasoning
     # Per-stage running summaries. Each agent writes its own slot.
     # Agents read THEIR OWN slot here — not the raw global message history.
-    # Orchestrator reads ALL slots for full context.
 
     summary: str
-    deflection_reasoning: str
-    tension_reasoning: str
+
+    bypass_stage: bool
+    # Set by orchestrator input_parser. True → graph skips stage agents, routes to compiler directly.
+    # Normal non-stage input (greetings, process questions, acks). NOT an error state.
 
     # Per-agent message queues (tagged slices of global history)
     purpose_message: Annotated[list, add_messages]
@@ -238,11 +262,24 @@ class PathFinderState(TypedDict):
     major: MajorProfile | None
     # Stage 4. HOW they get qualified.
 
-    university: dict | None
-    # Stage 5. Placeholder — UniProfile scrapped for now.
+    university: UniProfile | None
+    # Stage 5. The Institution (Gatekeeping & ROI limits)
 
-    path: PathProfile | None
-    # Stage 6. Terminal path synthesis by path_agent.
+    path_debate_ready: bool
+    # Python-computed by stage_manager each turn.
+    # True when: ALL stages done=True + all user_tag bool flags=False
+    #            + compliance_turns < 4 + disengagement_turns < 3 + avoidance_turns < 3
+    # Orchestrator reads this → sets current_stage="path" → compiler switches to Case B2.
+    # Never set by LLM. LLM CANNOT see this field.
+
+    stage_transitioned: bool
+    # True for exactly ONE turn after current_stage changes (auto-advance or forced accept).
+    # Written by stage_manager. Compiler injects STAGE_INTRO_BLOCK when True.
+    # Never set by LLM.
+
+    compiler_prompt: str
+    # Assembled system prompt for output_compiler. Written by context_compiler each turn.
+    # Pure Python decision tree output — no LLM involvement.
 
     # ─── LAYER 3: SYSTEM META ─────────────────────────────
     message_tag: MessageTag | None
@@ -253,6 +290,51 @@ class PathFinderState(TypedDict):
     
     troll_warnings: int
     # 0–3. Terminate session at 3.
+    # Managed by orchestrator each turn:
+    #   troll flagged → count + 1 | NOT flagged → max(0, count - 1)  ← passive decay
+    # Students are goofy. One troll msg shouldn't stick forever.
+
+    terminate: bool
+
+    escalation_pending: bool
+    # True → output compiler writes human-handoff message + sets terminate=True.
+    # Triggered by: harm signal | compliance_turns >= 9 | counter >= 3 | silent 10-turn window
+    escalation_reason: str
+    # Hardcoded string set by the node that triggers escalation.
+    # Format: "{source}: {detail}" — output compiler reads this for the handoff message.
+    # e.g. "contradict_count: 3 consecutive contradictions"
+    #      "silent_window: troll 6/10, disengagement 5/10"
+    #      "compliance: compliance_turns forced to 8 (chronic)"
+
+    compliance_turns: int
+    # Managed by counter_manager each turn:
+    #   message_type == "compliance" → count + 1 | else → max(0, count - 1)
+    # Prompt trigger: escalating technique by level (1-3 / 4-5 / 6-7 / 8-9)
+    # Real escalation: 10-turn window >= 5/10 → force to 9; next trigger → 10 → escalate
+
+    disengagement_turns: int
+    # Managed by counter_manager each turn:
+    #   message_type == "disengaged" → count + 1 | else → max(0, count - 1)
+    # >= 3: DISENGAGEMENT_BLOCK (warning) | >= 4: escalation_pending = True
+
+    avoidance_turns: int
+    # Managed by counter_manager each turn:
+    #   message_type == "avoidance" → count + 1 | else → max(0, count - 1)
+    # >= 3: AVOIDANCE_BLOCK (warning) | >= 4: escalation_pending = True
+
+    vague_turns: int
+    # Managed by counter_manager each turn:
+    #   message_type == "vague" → count + 1 | else → max(0, count - 1)
+    # >= 3: VAGUE_BLOCK (pattern warning — not escalation)
+
+    contradict_count: int
+    # Managed by stage_manager each turn:
+    #   contradict=True  → count + 1 | False → max(0, count - 1)
+    # >= 3 → escalation_pending = True
+    rebound_count: int
+    # Managed by stage_manager each turn:
+    #   rebound=True  → count + 1 | False → max(0, count - 1)
+    # >= 3 → escalation_pending = True
 
     verdict: dict | None
     # Final cross-agent verdict. {"purpose": "APPROVE", "job": "REJECT: ...", ...}
@@ -264,12 +346,21 @@ class PathFinderState(TypedDict):
     job_limit: bool
     major_limit: bool
     uni_limit: bool
-    path_limit: bool
     input_token: int
 
-    active_tags: list[str]
+    # ─── LAYER 4: SILENT MONITORING ─────────────────────────
+    turn_count: int
+    # Incremented each turn by orchestrator. Used for 10-turn window checks.
+    trigger_window: dict
+    # Tracks trigger count per counter in the current 10-turn window.
+    # Shape: {"contradict": int, "rebound": int, "compliance": int,
+    #         "disengagement": int, "troll": int, "avoidance": int, "vague": int}
+    # Every 10 turns (turn_count % 10 == 0 and turn_count > 0):
+    #   if any counter >= 5 (50%):
+    #     compliance → force compliance_turns = 9 (threshold = 10 → escalate)
+    #     all others → escalation_pending = True
+    #   then reset all values to 0
 
-# ─── DEFAULT STATE (used when creating a new session) ──────
 DEFAULT_STAGE = {
     "stage_related": [],
     "rebound": False,
@@ -281,10 +372,9 @@ DEFAULT_STAGE = {
 
 DEFAULT_STATE: PathFinderState = {
     "messages": [],
-    "profile_summary": ProfileSummary(),
+    "stage_reasoning": StageReasoning(),
     "summary": "",
-    "deflection_reasoning": "",
-    "tension_reasoning": "",
+    "bypass_stage": False,
     "purpose_message": [],
     "goals_message": [],
     "job_message": [],
@@ -298,11 +388,21 @@ DEFAULT_STATE: PathFinderState = {
     "job": None,
     "major": None,
     "university": None,
-    "path": None,
+    "path_debate_ready": False,
+    "stage_transitioned": False,
+    "compiler_prompt": "",
     "message_tag": None,
     "user_tag": None,
-    "active_tags": [],
     "troll_warnings": 0,
+    "terminate": False,
+    "escalation_pending": False,
+    "escalation_reason": "",
+    "compliance_turns": 0,
+    "disengagement_turns": 0,
+    "avoidance_turns": 0,
+    "vague_turns": 0,
+    "contradict_count": 0,
+    "rebound_count": 0,
     "verdict": None,
     "limit_hit": False,
     "thinking_limit": False,
@@ -311,6 +411,10 @@ DEFAULT_STATE: PathFinderState = {
     "job_limit": False,
     "major_limit": False,
     "uni_limit": False,
-    "path_limit": False,
-    "input_token": 0
+    "input_token": 0,
+    "turn_count": 0,
+    "trigger_window": {
+        "contradict": 0, "rebound": 0, "compliance": 0,
+        "disengagement": 0, "troll": 0, "avoidance": 0, "vague": 0,
+    },
 }

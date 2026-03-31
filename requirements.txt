@@ -1,5 +1,6 @@
 ﻿# Python backend
 python-dotenv
+langchain-community
 fastapi
 uvicorn
 pydantic
@@ -12,3 +13,6 @@ httpx
 
 # Token counting
 tiktoken
+
+# SSE streaming
+sse-starlette

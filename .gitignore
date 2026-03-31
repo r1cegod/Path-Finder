@@ -65,4 +65,10 @@ test.py
 .claude
 .pyre_configuration
 CLAUDE.md
+.mcp.json
+zip
 
+# Internal tooling — not for public repo
+DEV_LOG_SYSTEM_PROMPT.md
+architect_audit.txt
+architecture_doc_howto.md

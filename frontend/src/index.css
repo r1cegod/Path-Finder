@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base: #0a0a0a;
+  --color-surface: #111111;
+  --color-elevated: #171717;
+  --color-subtle: #1e1e1e;
+  --color-muted-line: #2a2a2a;
+
+  --color-text-pri: #ffffff;
+  --color-text-sec: #a0a0a0;
+  --color-text-muted: #555555;
+  --color-text-label: #666666;
+
+  --color-accent-purple: #7c3aed;
+  --color-accent-green: #4ade80;
+  --color-accent-amber: #f59e0b;
+  --color-accent-red: #ef4444;
+
+  --color-sys-msg: #d4d4d4;
+
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+.likert-circle {
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 9999px;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.likert-circle:hover {
+  transform: scale(1.1);
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #171717 25%, #222222 50%, #171717 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: inherit;
+}
+
+@keyframes loading-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-loading-bounce {
+  animation: loading-bounce 600ms infinite;
+}
+
+body {
+  background-color: var(--color-base);
+  color: var(--color-text-pri);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
