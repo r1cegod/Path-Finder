@@ -11,7 +11,7 @@ load_dotenv()
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://path-finder-rosy.vercel.app"],
     allow_methods=["*"],
     allow_headers=["*"]
 )
