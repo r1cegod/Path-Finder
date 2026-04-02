@@ -13,7 +13,7 @@ Most career counseling tools match test scores to school lists. Students give so
 | **Genuine engagement** | Compliance detection rate, field confidence scores | Longer sessions, higher token cost |
 | **Cost efficiency** | < $0.03/session average | Tiered models, token caps, conversation summarization |
 | **Conversational fluency** | Vietnamese "em/minh" register, 2-5 sentences/turn | Constrains response length, limits information density |
-| **Behavioral safety** | 6 counter escalation system, 10-turn window | Can terminate sessions prematurely for edge cases |
+| **Behavioral safety** | 6 counter escalation system, 10-turn window | Can end sessions prematurely for edge cases |
 | **Architectural clarity** | Every field has a writer, reader, and exit condition | Adds documentation overhead |
 
 ---
@@ -91,7 +91,7 @@ graph TD
 | **LLM (orchestrator)** | GPT-5.4 | Needs to classify 7 message types + write 13 UserTag fields + detect multi-turn patterns in a single structured output call. Mini model misclassifies edge cases (compliance vs. genuine vagueness). |
 | **LLM (agents + output)** | GPT-5.4-mini | Scoring, chatbot, and output compilation are simpler tasks — extract fields, ask one question, format response. 10x cheaper than full model. |
 | **Validation** | Pydantic v2 | `ConfigDict(extra="forbid")` on all structured output classes prevents the LLM from hallucinating extra fields. `.model_dump()` enforces TypedDict compatibility at every state boundary. |
-| **State** | TypedDict + MemorySaver | LangGraph's `add_messages` reducer handles conversation append-only semantics. MemorySaver enables conversation resume and time-travel debugging. SQLite planned for production. |
+| **State** | TypedDict + optional root-graph checkpointer | LangGraph's `add_messages` reducer handles conversation append-only semantics. In the current architecture, only the root orchestrator needs a checkpointer when sessions need persistence; stage and output subgraphs do not own separate persistence. |
 | **Language** | Python 3.13 | LangGraph and Pydantic v2 ecosystem. No alternative. |
 
 ---
@@ -102,15 +102,15 @@ graph TD
 
 | Agent | Role | Model | Reads from state | Writes to state |
 |-------|------|-------|-----------------|----------------|
-| **check_node** | Token counting, route to summarizer | None (Python) | `messages` | `limit_hit`, `input_token` |
+| **check_node** | Token counting, route to summarizer | None (Python) | `messages` | `limit_hit` |
 | **summarizer_node** | Compress conversation history | gpt-5.4-mini | `messages`, `summary`, `user_tag` | `messages` (removals), `summary` |
-| **input_parser** | Classify message, tag user, detect patterns | gpt-5.4 | `messages`, `user_tag`, `stage`, `reality_gap` | `message_tag`, `user_tag`, `bypass_stage`, `reality_gap`, `stage` (partial) |
+| **input_parser** | Classify message, tag user, detect patterns | gpt-5.4 | `messages`, `user_tag`, `stage` | `message_tag`, `user_tag`, `bypass_stage`, `stage` (partial) |
 | **stage_manager** | Route to correct stage, detect contradictions | None (Python) | `stage`, `contradict_count`, `rebound_count` | `stage` (full), `contradict_count`, `rebound_count` |
 | **counter_manager** | Manage all 6 decay counters + 10-turn window | None (Python) | `message_tag`, all counters, `trigger_window` | All counters, `trigger_window`, `escalation_pending` |
 | **scoring_node** | Extract FieldEntry values; set `profile.done` when complete | gpt-5.4-mini | `{stage}_message`, current profile | Current profile fields |
 | **analyst_node** | Write per-turn analysis to `stage_reasoning.{stage}` | gpt-5.4-mini | `{stage}_message`, current profile, `stage_reasoning` | `stage_reasoning.{stage}` |
 | **context_compiler** | Build output LLM system prompt from state | None (Python) | `message_tag`, `user_tag`, `stage`, all counters | `compiler_prompt` |
-| **output_compiler** | Generate final student-facing response | gpt-5.4-mini | `compiler_prompt`, `messages` | `messages` (AI response) |
+| **output_compiler** | Generate final student-facing response | gpt-5.4-mini | `compiler_prompt`, `messages`, `stage` | `messages` (AI response), `{stage}_message` (AI response tagged to active context stages) |
 
 ### Stage Pipeline
 
@@ -127,14 +127,14 @@ When all 6 profiles have `done=True`, the output compiler switches to **Case B2 
 
 ### State Schema Overview
 
-**`PathFinderState`** is a `TypedDict` with **42 top-level fields** organized in 4 layers:
+**`PathFinderState`** is a `TypedDict` organized in 4 layers:
 
 | Layer | Fields | Purpose |
 |-------|--------|---------|
 | **Conversation** | `messages`, `summary`, `stage_reasoning`, 6 `{stage}_message` queues | Raw conversation + per-agent message routing |
 | **Extracted Profiles** | `stage`, `thinking` through `university` (6 profiles) | Structured data extracted by scoring nodes |
-| **Signals** | `message_tag`, `user_tag`, `bypass_stage`, `reality_gap` | Per-turn and persistent behavioral classifications |
-| **Counters + System** | 6 counters, `trigger_window`, `escalation_*`, `terminate` | Python-managed behavioral thresholds |
+| **Signals** | `message_tag`, `user_tag`, `bypass_stage` | Per-turn and persistent behavioral classifications |
+| **Counters + System** | 6 counters, `trigger_window`, `path_debate_ready`, `stage_transitioned`, `escalation_*` | Python-managed behavioral thresholds and compiler gates |
 
 <details>
 <summary>MessageTag — per-turn, resets each turn (4 fields)</summary>
@@ -243,7 +243,7 @@ class UserTag(BaseModel):
 - Option A (keep chatbot, add `stage_draft` state field, output compiler adapts draft) — rejected: adds a new state field and a new `STAGE_DRAFT_BLOCK` in `output.py` for zero net gain. Output compiler already has `fields_needed` and `stage_status` from `_compute_stage_status()`.
 - Keep summarizer per stage — rejected: each analyst node rewrites its full analysis each turn. Per-stage compression adds an LLM hop for data the analyst already has.
 
-**Consequences**: Output compiler gets prose analysis context instead of a structured draft question. Stage subgraphs are simpler (2 nodes instead of 3). Information flow is explicit: `{stage}_message` is only ever read by scoring and analyst nodes; `messages` (global) is only ever written by the output compiler.
+**Consequences**: Output compiler gets prose analysis context instead of a structured draft question. Stage subgraphs are simpler (2 nodes instead of 3) and no longer own their own checkpointers. Information flow is explicit: `{stage}_message` is only ever read by scoring and analyst nodes, while Python taggers append both the student's message and the output compiler's AI response into the relevant stage queues.
 
 ### ADR-006: Persistent Domain Memory (Python Tagger)
 
@@ -308,14 +308,14 @@ rebound_count        stage.rebound=True      max(0,-1)   —       direct
 
 ## Known Limitations
 
-- **No persistence across sessions.** MemorySaver is in-memory. Planned: SQLite checkpointer for conversation resume.
+- **No persistence across sessions in the current test phase.** A checkpointer can be enabled later for conversation resume.
 - **Single-language only.** Vietnamese responses, English code/docs. No multilingual support planned.
 - **No external data sources.** University recommendations based on student profile, not live program data. Research agent (planned) will add web search.
 - **Token cap needs tuning.** Orchestrator `check_node` threshold raised to 2000 tokens. Stage agents no longer have per-stage summarizers — analyst nodes rewrite their full analysis each turn. Global summarizer threshold still needs calibration with real user data.
 - **4 of 6 stage prompts not yet audited.** `thinking_graph` and `purpose_graph` prompts audited (Entry 003). `goals`, `job`, `major`, `uni` prompts exist but are unaudited drafts.
 - **Frontend not yet wired.** React 18 + Vite frontend built (in `zip/`). FastAPI endpoint and master graph not yet connected.
 - **Output compiler B2 is a placeholder.** `PATH_DEBATE_BLOCK` exists but debate logic (synthesis, red-team challenges) is not yet implemented. Trigger condition (all 6 `done=True`) is wired.
-- **`path_debate_ready` field not yet computed.** `stage_manager` should set it when all profiles done + no active user_tag flags + counters below threshold. Currently never set to True by any node.
+- **`path_debate_ready` is intentionally narrow.** `stage_manager` gates B2 on all profiles being done plus blocking user-constraint checks. Tighten or loosen that gate only in Python, not in prompt logic.
 - **ThinkingProfile MI/RIASEC seeding function not yet built.** `brain_type` and `riasec_top` are written by the frontend quiz. A Python function needs to map these → ThinkingProfile field initial confidences (e.g. kinesthetic → `learning_mode: hands-on, confidence=0.6`) before the thinking analyst node runs. LLM does NOT interpret test results directly.
 
 ---

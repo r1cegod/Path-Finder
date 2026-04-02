@@ -19,13 +19,12 @@ Orchestrator holds the full state. Agents get compressed handoffs.
  GoalsShortProfile  ├─► GoalsProfile  ← WHAT they want (both horizons unified)
  JobProfile                           ← WHERE they land
  MajorProfile                         ← HOW they get qualified
- PathProfile                          ← debate arc state (not data-collection)
 ─────────────────────────────────────────────────────────────
 """
 
 from typing import TypedDict, Annotated
 from langgraph.graph import add_messages
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 # ═══════════════════════════════════════════════════════════
@@ -36,8 +35,8 @@ class FieldEntry(BaseModel):
     content: str      # ← extracted text value from conversation
     confidence: float # ← 0.0–1.0; written ONLY by the Scoring Node
     # Rule: Scoring Node reads purpose_message → writes FieldEntry(s) back to state
-    # ChatBot Node reads the FieldEntry → uses content to shape its next question
-    # Never mutate confidence from the ChatBot Node.
+    # Downstream agents and the output compiler read these values.
+    # Never mutate confidence outside the Scoring Node.
 
 
 # ═══════════════════════════════════════════════════════════
@@ -267,9 +266,8 @@ class PathFinderState(TypedDict):
 
     path_debate_ready: bool
     # Python-computed by stage_manager each turn.
-    # True when: ALL stages done=True + all user_tag bool flags=False
-    #            + compliance_turns < 4 + disengagement_turns < 3 + avoidance_turns < 3
-    # Orchestrator reads this → sets current_stage="path" → compiler switches to Case B2.
+    # True when all 6 profiles are done and no blocking user constraints gate B2.
+    # Output compiler reads this and switches to Case B2.
     # Never set by LLM. LLM CANNOT see this field.
 
     stage_transitioned: bool
@@ -289,15 +287,14 @@ class PathFinderState(TypedDict):
     # Persistent output modifier. Set once, updated as context grows.
     
     troll_warnings: int
-    # 0–3. Terminate session at 3.
+    # 0–3. Escalation path triggers at 3.
     # Managed by orchestrator each turn:
     #   troll flagged → count + 1 | NOT flagged → max(0, count - 1)  ← passive decay
     # Students are goofy. One troll msg shouldn't stick forever.
 
-    terminate: bool
 
     escalation_pending: bool
-    # True → output compiler writes human-handoff message + sets terminate=True.
+    # True → output compiler writes the Case C close-out message.
     # Triggered by: harm signal | compliance_turns >= 9 | counter >= 3 | silent 10-turn window
     escalation_reason: str
     # Hardcoded string set by the node that triggers escalation.
@@ -340,13 +337,6 @@ class PathFinderState(TypedDict):
     # Final cross-agent verdict. {"purpose": "APPROVE", "job": "REJECT: ...", ...}
 
     limit_hit: bool
-    thinking_limit: bool
-    purpose_limit: bool
-    goal_limit: bool
-    job_limit: bool
-    major_limit: bool
-    uni_limit: bool
-    input_token: int
 
     # ─── LAYER 4: SILENT MONITORING ─────────────────────────
     turn_count: int
@@ -394,7 +384,6 @@ DEFAULT_STATE: PathFinderState = {
     "message_tag": None,
     "user_tag": None,
     "troll_warnings": 0,
-    "terminate": False,
     "escalation_pending": False,
     "escalation_reason": "",
     "compliance_turns": 0,
@@ -405,13 +394,6 @@ DEFAULT_STATE: PathFinderState = {
     "rebound_count": 0,
     "verdict": None,
     "limit_hit": False,
-    "thinking_limit": False,
-    "purpose_limit": False,
-    "goal_limit": False,
-    "job_limit": False,
-    "major_limit": False,
-    "uni_limit": False,
-    "input_token": 0,
     "turn_count": 0,
     "trigger_window": {
         "contradict": 0, "rebound": 0, "compliance": 0,

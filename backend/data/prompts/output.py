@@ -10,6 +10,9 @@ build_compiler_prompt(state) → str
   Called by context_compiler node with the full state.
 """
 
+from typing import Any
+
+from backend.data.contracts.stages import STAGE_ORDER, STAGE_TO_PROFILE_KEY, STAGE_TO_REASONING_KEY
 from backend.data.state import PathFinderState, MessageTag, UserTag, StageCheck, StageReasoning
 
 
@@ -496,46 +499,78 @@ def _get_stage_reasoning(state: PathFinderState) -> StageReasoning:
         return StageReasoning(**raw)
     return raw
 
+def _to_plain_mapping(value: Any) -> dict | None:
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    return None
+
+def _is_field_entry_payload(value: Any) -> bool:
+    mapping = _to_plain_mapping(value)
+    return bool(mapping) and "content" in mapping and "confidence" in mapping
+
+def _is_extracted_leaf(value: Any) -> bool:
+    mapping = _to_plain_mapping(value)
+    if _is_field_entry_payload(value):
+        return float(mapping.get("confidence", 0) or 0) > 0
+    if isinstance(value, bool):
+        return True
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, tuple, set, dict)):
+        return bool(value)
+    return True
+
+def _collect_progress_fields(value: Any, prefix: str = "") -> list[tuple[str, bool]]:
+    mapping = _to_plain_mapping(value)
+    if mapping is None or _is_field_entry_payload(value):
+        return [(prefix, _is_extracted_leaf(value))]
+
+    fields: list[tuple[str, bool]] = []
+    for key, child in mapping.items():
+        if key == "done":
+            continue
+        label = f"{prefix}.{key}" if prefix else key
+        child_mapping = _to_plain_mapping(child)
+        if child_mapping and not _is_field_entry_payload(child):
+            fields.extend(_collect_progress_fields(child, label))
+        else:
+            fields.append((label, _is_extracted_leaf(child)))
+    return fields
+
 def _compute_stage_status(state: PathFinderState, current_stage: str) -> tuple[str, str]:
-    profile_map = {
-        "purpose":    state.get("purpose"),
-        "thinking":   state.get("thinking"),
-        "goals":      state.get("goals"),
-        "job":        state.get("job"),
-        "major":      state.get("major"),
-        "university": state.get("university"),
-    }
-    profile = profile_map.get(current_stage)
+    profile_key = STAGE_TO_PROFILE_KEY.get(current_stage)
+    profile = state.get(profile_key) if profile_key else None
     if profile is None:
         return "not started", "all fields"
 
-    if isinstance(profile, dict):
-        fields = {k: v for k, v in profile.items() if k != "done"}
-        extracted = sum(1 for v in fields.values()
-                        if isinstance(v, dict) and v.get("confidence", 0) > 0)
-        needed = [k for k, v in fields.items()
-                  if not isinstance(v, dict) or v.get("confidence", 0) == 0]
-    else:
-        fields = {k: v for k, v in profile.__dict__.items() if k != "done"}
-        extracted = sum(1 for v in fields.values()
-                        if hasattr(v, "confidence") and v.confidence > 0)
-        needed = [k for k, v in fields.items()
-                  if not hasattr(v, "confidence") or v.confidence == 0]
+    fields = _collect_progress_fields(profile)
+    if not fields:
+        return "not started", "all fields"
 
+    extracted = sum(1 for _, is_extracted in fields if is_extracted)
+    needed = [label for label, is_extracted in fields if not is_extracted]
     total = len(fields)
-    status = f"{extracted}/{total} fields extracted" if extracted > 0 else "not started"
+
+    if extracted == 0:
+        status = "not started"
+    elif extracted == total:
+        status = "all fields complete"
+    else:
+        status = f"{extracted}/{total} fields extracted"
     fields_needed_str = ", ".join(needed) if needed else "all fields complete"
     return status, fields_needed_str
 
 def _build_synthesis_block(state: PathFinderState) -> str:
     reasoning = _get_stage_reasoning(state)
-    _rkey = {"university": "uni"}
-    stages = ["thinking", "purpose", "goals", "job", "major", "university"]
     chunks = []
-    for s in stages:
-        text = getattr(reasoning, _rkey.get(s, s), "")
+    for stage_name in STAGE_ORDER:
+        text = getattr(reasoning, STAGE_TO_REASONING_KEY[stage_name], "")
         if text:
-            chunks.append(f"[{s.upper()}]\n{text}")
+            chunks.append(f"[{stage_name.upper()}]\n{text}")
     content = "\n\n".join(chunks) if chunks else "All stage reasoning pending."
     return f"<synthesis>\n{content}\n</synthesis>"
 

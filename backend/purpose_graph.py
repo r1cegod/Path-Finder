@@ -1,16 +1,25 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, ConfigDict
 from dotenv import load_dotenv
 import os
 from backend.data.state import PathFinderState, PurposeProfile, StageReasoning
 from backend.data.prompts.purpose import PURPOSE_DRILL_PROMPT, CONFIDENT_PROMPT
+from backend.data.contracts.stages import (
+    STAGE_TO_PROFILE_KEY,
+    STAGE_TO_QUEUE_KEY,
+    STAGE_TO_REASONING_KEY,
+)
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-memory = MemorySaver()
+
+# contract prep
+STAGE = "purpose"
+PROFILE_KEY = STAGE_TO_PROFILE_KEY[STAGE]
+QUEUE_KEY = STAGE_TO_QUEUE_KEY[STAGE]
+REASONING_KEY = STAGE_TO_REASONING_KEY[STAGE]
 
 # dict to object
 def get_stage_reasoning(state: PathFinderState) -> StageReasoning:
@@ -18,6 +27,12 @@ def get_stage_reasoning(state: PathFinderState) -> StageReasoning:
     if isinstance(raw, dict):
         return StageReasoning(**raw)
     return raw
+
+def get_current_stage(state: PathFinderState) -> str:
+    stage_raw = state.get("stage") or {}
+    if isinstance(stage_raw, dict):
+        return stage_raw.get("current_stage", STAGE)
+    return getattr(stage_raw, "current_stage", STAGE)
 
 # structured outputs
 class PurposeAnalysis(BaseModel):
@@ -35,37 +50,35 @@ confident_llm = llm.with_structured_output(ConfidentOutput)
 
 # nodes
 def purpose_agent(state: PathFinderState) -> dict:
-    messages        = state["purpose_message"]
+    messages        = state[QUEUE_KEY]
     stage_reasoning = get_stage_reasoning(state)
-    purpose         = state.get("purpose")
+    purpose         = state.get(PROFILE_KEY)
 
     thinking    = state.get("thinking")
     message_tag = state.get("message_tag")
 
-    stage_raw = state.get("stage") or {}
-    current_stage = stage_raw.get("current_stage", "thinking") if isinstance(stage_raw, dict) else getattr(stage_raw, "current_stage", "thinking")
-    is_current_stage = str(current_stage == "purpose")
+    is_current_stage = str(get_current_stage(state) == STAGE)
 
     response = analysis_llm.invoke(
         [SystemMessage(PURPOSE_DRILL_PROMPT.format(
             is_current_stage=is_current_stage,
-            stage_reasoning=stage_reasoning.purpose,
+            stage_reasoning=getattr(stage_reasoning, REASONING_KEY),
             purpose=purpose or "",
             thinking=thinking or "",
             message_tag=message_tag or "",
         ))] + messages
     )
-    updated = stage_reasoning.model_copy(update={"purpose": response.purpose_summary})
+    updated = stage_reasoning.model_copy(update={REASONING_KEY: response.purpose_summary})
     return {"stage_reasoning": updated.model_dump()}
 
 def confident_node(state: PathFinderState) -> dict:
-    messages = state["purpose_message"]
-    purpose  = state.get("purpose")
+    messages = state[QUEUE_KEY]
+    purpose  = state.get(PROFILE_KEY)
 
     response = confident_llm.invoke(
         [SystemMessage(CONFIDENT_PROMPT.format(purpose=purpose or ""))] + messages
     )
-    return {"purpose": response.purpose.model_dump()}
+    return {PROFILE_KEY: response.purpose.model_dump()}
 
 # graph
 builder = StateGraph(PathFinderState)

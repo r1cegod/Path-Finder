@@ -56,6 +56,8 @@ Desktop.ini
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+threads/
+Trace/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -64,7 +66,6 @@ GEMINI.md
 test.py
 .claude
 .pyre_configuration
-CLAUDE.md
 .mcp.json
 zip
 

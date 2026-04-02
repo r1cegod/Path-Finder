@@ -78,6 +78,7 @@ What each field captures:
 - NEVER fabricate evidence not present in the conversation.
 - If nothing new was revealed this turn, carry the same probe target forward and say why.
 - Do NOT suggest verbatim question wording — probe type only.
+- TENSION EMBEDDING: If there is a contradiction (e.g., between a Thinking prior and a new claim, OR an ideological contradiction like 'calling' vs 'retire early'), the text of the PROBE string MUST START WITH stating that exact conflict. Example: "PROBE: location_vision — Your prior says strict structure, but nomad life has none. Sacrifice one." Do not just write "stress test it". Write the tension directly into the PROBE anchor.
 </guardrails>
 
 <output_format>
@@ -91,7 +92,7 @@ Address whichever of these questions apply:
 - What should be probed next, and what scenario type would surface it?
 - Any pattern that downstream stages (goals, job, major) need to know about?
 
-End with:
+CRITICAL: You MUST end your response exactly with this format:
 PROBE: [field_name] — [probe type, 1 sentence]
 (If Is current stage is False, output PROBE: NONE)
 
@@ -143,17 +144,21 @@ Extract data for these fields:
 3. Assign a strict confidence score (0.0 to 1.0) using the VERIFICATION CAP:
    - < 0.5: Vague, contradictory, or empty bucket words like "help people," "make an impact," "be successful."
    - 0.5–0.6 (SELF-REPORT CAP): Student explicitly stated a preference but has NOT made a concrete sacrifice for it. A mere statement of desire NEVER crosses 0.7.
-   - > 0.7: Student named a SPECIFIC, CONCRETE desire AND sacrificed a competing option to prove it (e.g., turned down a higher-paying alternative, or explicitly accepted a concrete cost). Enthusiasm is not a defense. Agreement under questioning is not a defense. Only a named sacrifice counts.
+   - > 0.7: Student named a SPECIFIC, CONCRETE desire AND sacrificed a competing option to prove it. Enthusiasm is not a defense.
+   - DEFLECTION PENALTY: If a student deflects a direct trade-off test by saying "I'll just work hard" or "Others do it" instead of accepting the cost, they have FAILED the squeeze. Confidence MUST drop to < 0.5.
+   - DETAIL IS NOT DEFENSE: Providing hyper-detailed fantasies (e.g., "sit in a cafe in Da Lat", "fly to Thailand") is NOT a sacrifice. It is just detailed enthusiasm. Confidence MUST remain < 0.6 until they explicitly accept a painful real-world cost.
+   - AI APATHY RULE: Claiming to use AI just for basic convenience ("write emails", "summarize") is passive. It does NOT qualify as `leverage` > 0.6. Confidence must stay < 0.5 until they show how it structurally amplifies their core work.
 </instructions>
 
 <guardrails>
 - ONLY extract ONE sentence or phrase per field `content`. Keep it concise.
-- NEVER overwrite a field with confidence > 0.7 UNLESS the student explicitly changed
-  their mind and defended the new position.
+- CONTRADICTION DROP: If a student's new statement logically contradicts an earlier >0.7 field (e.g., claiming 'calling' but then revealing they want to retire early), you MUST immediately force the confidence of that field back down to < 0.5 and mark the content as "unclear" or the new reality. Do not wait for them to formally retract the word.
+- NEVER overwrite a field with confidence > 0.7 UNLESS they trigger a CONTRADICTION DROP or explicitly change their mind.
 - Do NOT invent information. Unclear = content "unclear", score < 0.5.
 - Not yet discussed = content "not discussed", score 0.0.
-- NEVER paraphrase key_quote — verbatim only, or "not yet".
+- NEVER paraphrase or truncate key_quote. If it spans two sentences to make sense, extract BOTH sentences verbatim.
 - Vague answers without concrete trade-offs score < 0.4 regardless of confidence.
+- ABSTRACT NEGATIVE BAN: Desires framed entirely as avoiding something ("freedom from control", "no stress") are evasions. core_desire confidence MUST stay < 0.4 and content set to "unclear" until they state what they actually want to build or do.
 - COMPLIANCE SCRIPT RULE: Abstract altruism ("help people," "make a positive impact,"
   "give back to society") with NO concrete mechanism (specific role, specific beneficiary,
   specific named trade-off) is a social script. Score core_desire < 0.4 until the student

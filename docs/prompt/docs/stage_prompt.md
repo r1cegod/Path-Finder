@@ -128,6 +128,22 @@ Stage agents must actively hunt for the truth, not passively accept self-reports
 
 ---
 
+## The Red-Team Evaluation Workflow (Automated Pipeline)
+
+Agent prompts are not considered "done" until they survive a structured, adversarial attack. Manual testing via LangGraph Studio is insufficient for edge cases. We use an automated multi-threaded evaluation pipeline to harden agents.
+
+**The Workflow Loop:**
+1. **Create/Update the Evaluation Audit Log:** Before writing any JSON, document the attack strategy in eval/*graph name/audit.md. Inside this file, explicitly map out each attack vector, the targeted failure state, and the expected output for both Extractor and Analyst. Maintain a compiled "attack point checklist" at the bottom of the file so we never lose sight of edge cases.
+2. **Build the JSONL Attack Vector:** Add structured JSONL test cases to the appropriate `eval/` dataset (e.g., `eval/*graph name*_attack.jsonl`). Each case must inject a specific prior or semantic condition designed to break the agent.
+3. **Execute the Pipeline:**
+   Context: eval/HOW_TO_USE.md
+   Run the evaluation script in multi-mode to test all scenarios concurrently:
+   `python eval/run_eval.py --mode multi --file eval/<target_attack>.jsonl --graph <target_graph>`
+4. **Audit the Traces & Record Results:** Read the resulting `traces/*.json`. Verify that the Extractor held the confidence ceilings and the Analyst generated a `PROBE:` explicitly attacking the contradiction. Update the Audit Log from Step 1 with the execution results.
+5. **Patch Guardrails:** If the agent fails, inject highly specific overriding rules into the prompt (e.g., `CONTRADICTION DROP` or `DETAIL IS NOT DEFENSE`). Repeat until all traces output `PASS`.
+
+---
+
 ### Confident prompt (confident_node)
 
 Every stage extractor prompt must have these blocks in this order:
@@ -576,3 +592,19 @@ The Job and Major agents have been refactored to reject Western generic career a
 1. **The Ecosystem Cap (Job):** Forces searches on the exact state of the VN market (e.g., "khó khăn khi làm [Role] ở Việt Nam", "mức lương thực tế"). Exposes the lack of niche roles or the outsourcing-heavy nature of local tech/creative hubs.
 2. **The Trái Ngành & Lý Thuyết Limits (Major):** Forces queries against the brutal realities of the VN higher education system (high theory, outdated curriculums, massive out-of-field working rates).
 3. **The Dreamer Exception:** The "Smart" path is taking a safe local degree. The "Dreamer" path is brute-forcing a niche passion. The agents are instructed NOT to crush the Dreamer's ambition IF the student has strong `purpose` and `goals` priors to survive the friction. It validates their ambition but forces them to face the exact, brutal execution barrier they must overcome without the help of the local ecosystem.
+
+---
+
+### 2026-04-02 — Session 4: Automated Evaluation Pipeline & Red-Teaming
+
+**[A24] "Detail is not Defense" (Extractor Hallucination)**
+Extractors were easily tricked by students providing hyper-detailed lifestyle fantasies (e.g., "I want to sit in a cafe in Da Lat and code remotely"). The LLM confused *vivid imagination* with *concrete sacrifice*, illegally boosting confidence to >0.7.
+Decision: Inject `DETAIL IS NOT DEFENSE`. Detail without painful real-world cost is merely enthusiasm. Confidence MUST remain capped at <0.6.
+
+**[A25] The Contradiction Drop (Semantic Deadlock)**
+Extractors had a rule: `NEVER overwrite a field > 0.7 unless the student explicitly changed their mind`. This meant if a student locked in work as a "calling" (0.9), but later revealed their true goal is to "FIRE and retire completely at 35," the LLM refused to lower the "calling" confidence because the student didn't formally retract the word.
+Decision: Implement `CONTRADICTION DROP`. If a logical contradiction surfaces against a locked prior, the LLM is ordered to violently override the confidence back down to `<0.5 (unclear)` to break the deadlock and force a Squeeze.
+
+**[A26] TENSION EMBEDDING in the PROBE Anchor**
+Analysts were successfully noting cross-field crashes (e.g. "prior says structured, but student wants digital nomad") in their free-form reasoning, but their final `PROBE:` anchor was too generic ("stress test their location choice"). The Output Compiler needs the tension handed to it.
+Decision: Enforce `TENSION EMBEDDING`. The text of the `PROBE:` string MUST literally start by stating the exact prior-vs-claim conflict, forcing the compiler to aggressively weaponize the contradiction.

@@ -1,16 +1,25 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, ConfigDict
 from dotenv import load_dotenv
 import os
 from backend.data.state import PathFinderState, GoalsProfile, GoalsLongProfile, GoalsShortProfile, StageReasoning
 from backend.data.prompts.goals import GOALS_DRILL_PROMPT, CONFIDENT_PROMPT as GOALS_CONFIDENT_PROMPT
+from backend.data.contracts.stages import (
+    STAGE_TO_PROFILE_KEY,
+    STAGE_TO_QUEUE_KEY,
+    STAGE_TO_REASONING_KEY,
+)
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-memory = MemorySaver()
+
+# contract prep
+STAGE = "goals"
+PROFILE_KEY = STAGE_TO_PROFILE_KEY[STAGE]
+QUEUE_KEY = STAGE_TO_QUEUE_KEY[STAGE]
+REASONING_KEY = STAGE_TO_REASONING_KEY[STAGE]
 
 # dict to object
 def get_stage_reasoning(state: PathFinderState) -> StageReasoning:
@@ -35,27 +44,27 @@ confident_llm = llm.with_structured_output(ConfidentOutput)
 
 # nodes
 def goals_agent(state: PathFinderState) -> dict:
-    messages        = state["goals_message"]
+    messages        = state[QUEUE_KEY]
     stage_reasoning = get_stage_reasoning(state)
-    goals           = state.get("goals")
+    goals           = state.get(PROFILE_KEY)
 
     response = analysis_llm.invoke(
         [SystemMessage(GOALS_DRILL_PROMPT.format(
-            stage_reasoning=stage_reasoning.goals,
+            stage_reasoning=getattr(stage_reasoning, REASONING_KEY),
             goals=goals or "",
         ))] + messages
     )
-    updated = stage_reasoning.model_copy(update={"goals": response.goals_summary})
+    updated = stage_reasoning.model_copy(update={REASONING_KEY: response.goals_summary})
     return {"stage_reasoning": updated.model_dump()}
 
 def confident_node(state: PathFinderState) -> dict:
-    messages = state["goals_message"]
-    goals    = state.get("goals")
+    messages = state[QUEUE_KEY]
+    goals    = state.get(PROFILE_KEY)
 
     response = confident_llm.invoke(
         [SystemMessage(GOALS_CONFIDENT_PROMPT.format(goals=goals or ""))] + messages
     )
-    return {"goals": response.goals.model_dump()}
+    return {PROFILE_KEY: response.goals.model_dump()}
 
 # graph
 builder = StateGraph(PathFinderState)

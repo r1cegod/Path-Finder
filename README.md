@@ -12,13 +12,20 @@ Built for Vietnamese students. Conducted in Vietnamese.
 ### Tech Stack:
 - **Brain:** OpenAI GPT + LangGraph (Master Orchestrator + 6 Stage Agents)
 - **Backend:** Python + Pydantic v2 (strict structured output, `extra="forbid"` on all models)
-- **State:** 42-field TypedDict — 4 layers: conversation, extracted profiles, behavioral signals, counters
-- **Frontend:** React 18 + Vite + Tailwind (wired)
+- **State:** Shit tons of field, go see for your self
+- **Frontend:** React 18 + Vite + Tailwind (wired), live with railway and vercel.
 
 ### How to Use:
 Start the API: `python main.py`
 Send a POST to `/chat` with `{ "session_id": "...", "message": "..." }`.
 LangGraph Studio: `langgraph dev`
+Live in vercel: https://path-finder-rosy.vercel.app
+
+### Learning history:
+- Raw python bot
+- Langraph integration
+- First project: https://github.com/r1cegod/FunctionPartner-Amber
+- And now this damn project
 
 ### Development History:
 Building from the ground up — Bottom-Up Law. Each node verified in isolation before wiring.
@@ -47,13 +54,19 @@ Building from the ground up — Bottom-Up Law. Each node verified in isolation b
 **Why?**
 To prove I can orchestrate complex, multi-agent AI systems — manage state, handle edge cases, keep context tight — and build something that actually helps students like me make massive life decisions. This is the FPT SE Scholarship portfolio piece.
 
+**It is just "vibe coded" app?**
+Hell naw, define "vibe code"? Vibe coded mark only apply for products created with pure "fun and vibes" no fucking understanding whatsoever. I learned shit my self starting with python llm bot call and moving on, did delegated the frontend and some python feature still i got the understanding.
+
 **How are you building this?**
 Applying the SEAM method. Bottom-Up Law — build each node independently, verify in isolation, wire last. Every architectural decision has a rejected alternative documented. See `ARCHITECTURE.md` for the full ADR record.
 
 **What's the hardest part?**
 Not the models. State management and edge case routing — troll detection, contradictions, stage skips, rebound detection — all must feel like happy cases, not errors. The LLM classifies; Python counts, routes, and escalates. That boundary is where most of the design work lives.
 
-### Logs:
-See `DEV_LOG.md`
+**Drop the settup**'
+The four horse men of development "ME"-Learning (literally), "Claude code"-Reasoning (planning and frontend), "Codex"-Execution (code write, review) and "Gemini-Antigravity"-Evaluate (prompt audit)
 
-*Built by Anh Duc — solo, self-taught.*
+### Logs:
+See `docs/DEV_LOG.md`
+
+*Built by Anh Duc — solo, self-taught, powered with claude, codex and gemini*

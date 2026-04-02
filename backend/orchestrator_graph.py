@@ -12,11 +12,14 @@ from backend.job_graph import job_graph
 from backend.major_graph import major_graph
 from backend.uni_graph import uni_graph
 from backend.output_graph import context_compiler, output_compiler
+from backend.data.contracts.stages import (
+    STAGE_INDEX,
+    STAGE_ORDER,
+    STAGE_TO_QUEUE_KEY,
+    is_stage_name,
+)
 from dotenv import load_dotenv
 import os, tiktoken
-
-STAGE_ORDER = ["thinking", "purpose", "goals", "job", "major", "university"]
-STAGE_INDEX = {name: i for i, name in enumerate(STAGE_ORDER)}
 
 #prep
 load_dotenv()
@@ -109,12 +112,8 @@ def input_parser(state: PathFinderState):
     if len(state["messages"]) > 0:
         latest_msg = state["messages"][-1]
         for s in response.stage_related:
-            if s == "thinking": updates["thinking_style_message"] = [latest_msg]
-            elif s == "purpose": updates["purpose_message"] = [latest_msg]
-            elif s == "goals": updates["goals_message"] = [latest_msg]
-            elif s == "job": updates["job_message"] = [latest_msg]
-            elif s == "major": updates["major_message"] = [latest_msg]
-            elif s == "university": updates["uni_message"] = [latest_msg]
+            if is_stage_name(s):
+                updates[STAGE_TO_QUEUE_KEY[s]] = [latest_msg]
 
     return updates
 
@@ -166,8 +165,7 @@ def stage_manager(state: PathFinderState) -> dict:
     new_contradict = old_contradict_count + 1 if has_contradict else max(0, old_contradict_count - 1)
     new_rebound = old_rebound_count + 1 if has_rebound else max(0, old_rebound_count - 1)
 
-    stage_keys = ["thinking", "purpose", "goals", "job", "major", "university"]
-    all_done = all(_is_done(state.get(k)) for k in stage_keys)
+    all_done = all(_is_done(state.get(stage_name)) for stage_name in STAGE_ORDER)
     path_debate_ready = all_done and not parental_pressure and not burnout_risk
 
     result = {
@@ -177,21 +175,6 @@ def stage_manager(state: PathFinderState) -> dict:
         "path_debate_ready": path_debate_ready,
         "stage_transitioned": current != prev_stage,
     }
-
-    if has_contradict and len(state["messages"]) > 0:
-        latest_msg = state["messages"][-1]
-        _queue_map = {
-            "thinking":   "thinking_style_message",
-            "purpose":    "purpose_message",
-            "goals":      "goals_message",
-            "job":        "job_message",
-            "major":      "major_message",
-            "university": "uni_message",
-        }
-        for s in past:
-            if s in _queue_map:
-                result[_queue_map[s]] = [latest_msg]
-
     return result
 
 def counter_manager(state: PathFinderState) -> dict:
@@ -294,8 +277,7 @@ def route_stage(state: PathFinderState) -> str:
     stage_raw = state.get("stage") or {}
     current = (stage_raw.get("current_stage") if isinstance(stage_raw, dict)
                else getattr(stage_raw, "current_stage", "thinking"))
-    valid = {"thinking", "purpose", "goals", "job", "major", "university"}
-    return current if current in valid else "thinking"
+    return current if is_stage_name(current) else "thinking"
 
 #graph
 builder = StateGraph(PathFinderState)
@@ -324,10 +306,10 @@ builder.add_edge("input_parser",    "stage_manager")
 builder.add_edge("stage_manager",   "counter_manager")
 
 #stagerouting
-_stage_targets = ["thinking", "purpose", "goals", "job", "major", "university", "context_compiler"]
+_stage_targets = [*STAGE_ORDER, "context_compiler"]
 builder.add_conditional_edges("counter_manager", route_stage, _stage_targets)
 
-for _s in ["thinking", "purpose", "goals", "job", "major", "university"]:
+for _s in STAGE_ORDER:
     builder.add_edge(_s, "context_compiler")
 
 #outputchain

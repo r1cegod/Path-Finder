@@ -20,7 +20,7 @@ User message
 │                                    message_tag ◄──── LLM      │
 │                                    user_tag                    │
 │                                    bypass_stage               │
-│                                    reality_gap + reasoning    │
+│                                    user_tag + reasoning       │
 │                                    stage (partial)            │
 │                                                │              │
 │                                                ▼              │
@@ -58,7 +58,7 @@ User message
 │  output_compiler:  LLM generates response from prompt        │
 │                                                               │
 │  READS: message_tag, user_tag, stage, all counters,          │
-│         reality_gap, escalation_pending, stage_reasoning     │
+│         escalation_pending, stage_reasoning                  │
 │  WRITES: compiler_prompt, messages (final response)          │
 └─────────────────────────────────────────────────────────────┘
 
@@ -75,14 +75,14 @@ User message
 | `messages` | `Annotated[list, add_messages]` | All nodes (append) | All nodes | Grows, trimmed by summarizer |
 | `summary` | `str` | summarizer_node | input_parser, summarizer | Grows (compressed history) |
 | `stage_reasoning` | `StageReasoning` | Each stage analyst_node (own slot) | output compiler (PROFILE_CONTEXT_BLOCK) | Grows per stage; each turn analyst overwrites its slot |
-| `{stage}_message` | `Annotated[list, add_messages]` | Python Tagger (Input Parser + Output Compiler) | Stage agent only | Persistent domain-specific memory bank. Escapes global summarizer. |
+| `{stage}_message` | `Annotated[list, add_messages]` | input_parser tagger + output_compiler tagger | Stage agent only | Persistent domain-specific memory bank of both student and assistant turns. Escapes global summarizer. |
 
 ### LAYER 2: ROUTING
 
 | Field | Type | Writer | Reader | Lifecycle | Exit |
 |---|---|---|---|---|---|
 | `stage` | `StageCheck` | input_parser (partial), stage_manager (full) | stage_manager, counter_manager, output compiler | Updated each turn | N/A |
-| `stage.current_stage` | `str` | stage_manager | All downstream | Advances on profile.done | Reaches "path" |
+| `stage.current_stage` | `str` | stage_manager | All downstream | Advances on profile.done | N/A |
 | `stage.stage_related` | `list[str]` | input_parser (LLM) | stage_manager | Per-turn | N/A |
 | `stage.forced_stage` | `str` | input_parser (LLM) | stage_manager | Per-turn, clears after use | Clears to "" |
 | `stage.rebound` | `bool` | input_parser (LLM) | stage_manager | Per-turn | N/A |
@@ -101,7 +101,7 @@ All profiles start `None`. Filled by their stage agent's `scoring_node`. Persist
 | `goals` | `GoalsProfile` | goals scoring_node | job, major agents | Stage advances |
 | `job` | `JobProfile` | job scoring_node | major, uni agents | Stage advances |
 | `major` | `MajorProfile` | major scoring_node | uni agent | Stage advances |
-| `university` | `dict` (placeholder) | uni_agent | output compiler | Terminal stage |
+| `university` | `UniProfile` | uni scoring_node | output compiler | Terminal stage |
 
 <details>
 <summary>Profile field reference (all stages)</summary>
@@ -176,9 +176,12 @@ Fields: `field`, `curriculum_style`, `required_skills_coverage`
 | `.core_tension` | `bool` | LLM | output compiler (block gate) | `False` when resolved |
 | `.core_tension_reasoning` | `str` | LLM | output compiler (block content) | `""` when resolved |
 | `.self_authorship` | `str` | LLM | output compiler (block content) | `""` when self-authored |
+| `.reality_gap` | `bool` | LLM | output compiler (block gate) | `False` when resolved |
+| `.reality_gap_reasoning` | `str` | LLM | output compiler (block content) | `""` when resolved |
 | `.compliance_reasoning` | `str` | LLM | output compiler (COMPLIANCE_BLOCK) | `""` when genuine |
 | `.disengagement_reasoning` | `str` | LLM | output compiler (DISENGAGEMENT_BLOCK) | `""` when re-engaged |
 | `.avoidance_reasoning` | `str` | LLM | output compiler (AVOIDANCE_BLOCK) | `""` when addressed |
+| `.vague_reasoning` | `str` | LLM | output compiler (VAGUE_BLOCK) | `""` when concrete |
 
 ### LAYER 5: COUNTERS (managed by Python, not LLM)
 
@@ -197,15 +200,12 @@ Fields: `field`, `curriculum_style`, `required_skills_coverage`
 
 | Field | Type | Writer | Reader | Lifecycle | Exit |
 |---|---|---|---|---|---|
-| `reality_gap` | `bool` | input_parser (LLM) | output compiler | Persistent until LLM clears | `False` when resolved |
-| `reality_gap_reasoning` | `str` | input_parser (LLM) | output compiler | Accumulated | Injected into REALITY_GAP_BLOCK |
+| `path_debate_ready` | `bool` | stage_manager | output compiler | Per-turn | N/A |
+| `stage_transitioned` | `bool` | stage_manager | output compiler | One-turn pulse | Resets next turn |
 | `compiler_prompt` | `str` | context_compiler (Python) | output_compiler (LLM) | Per-turn | N/A |
 | `escalation_pending` | `bool` | stage_manager, counter_manager | output compiler | Sticky once True | Session ends |
 | `escalation_reason` | `str` | stage_manager, counter_manager | output compiler | Set when escalation triggers | Read once |
-| `terminate` | `bool` | counter_manager, output compiler | Graph router | Sticky once True | Session ends |
 | `limit_hit` | `bool` | check_node | Graph router | Per-turn | N/A |
-| `{stage}_limit` | `bool` | Per-stage check_node | Stage subgraph router | Per-turn | N/A |
-| `input_token` | `int` | check_node | N/A | Per-turn | N/A |
 | `verdict` | `dict \| None` | Verdict check | output compiler, path_agent | Written once | N/A |
 
 ---

@@ -160,6 +160,11 @@ CONVERSATIONAL FIELDS (extract from conversation):
 - If a field has not been discussed at all, set content to "not discussed" and score 0.0.
 - NEVER clear or modify brain_type, riasec_top, or riasec_scores.
   These are test-seeded and read-only for this node.
+- STRICT ENUM COMPLIANCE: For `learning_mode`, `env_constraint`, `social_battery`, and
+  `personality_type`, you MUST choose exactly ONE of the provided examples once the 
+  student's choice is verified. NEVER invent new intermediate categories like
+  "ambivert", "mixed", or "both". If the student refuses to choose or claims a
+  perfect balance, set content to "unclear" and score < 0.5.
 </guardrails>
 
 <output_format>
