@@ -44,7 +44,7 @@ class ConfidentOutput(BaseModel):
 # llm — uni_agent uses bind_tools for data retrieval
 tools = [search]
 llm = ChatOpenAI(model="gpt-5.4-mini")
-agent_llm     = llm.bind_tools(tools)
+agent_llm     = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).bind_tools(tools)
 confident_llm = llm.with_structured_output(ConfidentOutput)
 
 tool_node = ToolNode(tools=tools, messages_key=QUEUE_KEY)

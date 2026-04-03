@@ -150,3 +150,17 @@ Import tests caught syntax errors. They did not catch wrong dict keys. Those onl
 
 **Second follow-through:** Removed redundant `MemorySaver` ownership from all stage subgraphs and from `output_graph.py`; only the root orchestrator keeps the checkpointer now. Also fixed a real output tagging bug: `output_compiler` was appending a new AI response to `messages` but tagging `state["messages"][-1]`, which still pointed at the previous turn's human message. The node now tags the newly created `AIMessage` into the union of `stage_related + contradict_target`, and `test_output_graph_contract.py` locks that behavior.
 
+---
+
+### Entry 009 - 2026-04-03
+
+**Goal:** Define a stable evaluation method for the web-enabled data agents (`job`, `major`, `uni`).
+
+**Decision:** Formalized data-agent evaluation as a **retrieval-plus-reasoning** problem, not a normal stage-agent prompt audit. Added `docs/evaluation/data_agent_evaluation.md` as the canonical guide. The evaluation seam now includes six checks: search-trigger correctness, query quality, evidence grounding, consensus-crash quality, confidence calibration, and tool discipline. Also locked the recommended test stack into three layers: deterministic replay suite as primary, adversarial retrieval suite for noisy/frozen evidence, and live-search smoke runs only for drift detection.
+
+**Why this matters:** The current stage audit pattern was built for knowledge agents. Data agents can fail before reasoning quality even matters: they may skip a required search, formulate the wrong VN query, or ignore the returned evidence while still writing plausible prose. Treating them like normal stage agents hides the real failure mode.
+
+**Constraint surfaced:** `eval/run_eval.py` already replays input state and writes traces, but it does not yet inject mocked tool responses. That means the repo can run live-search attack datasets today, but a fully deterministic replay harness still requires a mockable search seam.
+
+**Next:** Use the new guide to build the first dedicated audit doc and attack dataset for one retrieval stage, preferably `job`, then decide whether to extend the eval runner with frozen tool fixtures.
+

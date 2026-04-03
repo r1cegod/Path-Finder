@@ -4,38 +4,33 @@ Use this file as the short-lived working scratchpad for the current build cycle.
 Move durable decisions to `PROJECT_CONTEXT.md` or `docs/DEV_LOG.md`.
 
 ## Active Goal
-- Goal: Finalize the backend runtime contract cleanup so the tree is ready to commit.
-- Success condition: only the root orchestrator owns a checkpointer, stage queues capture both student and assistant turns where intended, and the test surface passes cleanly.
-- Deadline or milestone: 2026-04-02 pre-commit cleanup.
+- Goal: Canonicalize the evaluation strategy for web-enabled data agents (`job`, `major`, `uni`).
+- Success condition: the repo has one source-of-truth doc for retrieval-aware stage evaluation, including replay-vs-live guidance, attack categories, and trace-audit criteria.
+- Deadline or milestone: 2026-04-03 evaluation-method cleanup.
 
 ## Current Workstream
-- Area: Backend runtime contract cleanup.
-- Files in play: `backend/output_graph.py`, `backend/orchestrator_graph.py`, `backend/thinking_graph.py`, `backend/purpose_graph.py`, `backend/goals_graph.py`, `backend/job_graph.py`, `backend/major_graph.py`, `backend/uni_graph.py`, `test_output_graph_contract.py`, `test_stage_contract.py`, `test_output_prompt_contract.py`, `test.py`, `docs/architecture/docs/state_architecture.md`, `docs/architecture/docs/ARCHITECTURE.md`, `docs/DEV_LOG.md`
-- Why this matters now: The runtime contract is mostly stable now; the remaining pre-commit risk was stale test coverage around output tagging and import-time execution in `test.py`.
+- Area: Evaluation documentation and attack methodology.
+- Files in play: `docs/evaluation/data_agent_evaluation.md`, `docs/evaluation/stage_evaluation.md`, `docs/DEV_LOG.md`, `docs/context/docs/CURRENT_CONTEXT.md`
+- Why this matters now: `job`, `major`, and `uni` are retrieval-enabled stages, so the older pure-stage attack pattern was incomplete for search-trigger, query-quality, and evidence-grounding failures.
 
 ## Open Questions
-- Question: Should stage queues keep only conversational turns, or should tool-call traffic also be filtered before append?
+- Question: Should the eval runner gain a first-class mocked-search seam so replay datasets can be fully deterministic?
 - Blocking component: None
-- Next check: Inspect whether tool-enabled stages are accumulating internal tool messages in a way that hurts downstream prompts.
+- Next check: Decide whether to extend `eval/run_eval.py` with fixture-backed tool injection or keep replay checks manual for now.
 
 ## Risks And Constraints
-- Risk: Stage queues now capture both sides of the conversation, which is correct for context, but they may also need message-type filtering later if tool chatter becomes noisy.
-- Evidence: Tool-enabled stages (`job`, `major`, `university`) already use queue-backed tool routing, so queue hygiene matters more now.
-- Mitigation: Keep output tagging limited to context stages and lock the behavior with focused contract tests.
+- Risk: Live web search makes eval traces unstable across time because snippets drift and numbers change.
+- Evidence: the current `search` tool is backed by live Serper results, while `eval/run_eval.py` only replays input state, not tool responses.
+- Mitigation: treat replay-with-frozen-tool-results as the target eval architecture and keep live-search runs as smoke checks only.
 
 ## Commands To Re-Run
-- `python test.py`
-- `python -m unittest test_output_prompt_contract.py`
-- `python -m unittest test_stage_contract.py`
-- `python -m unittest test_output_graph_contract.py`
-- `langgraph dev`
-- `python -c "from backend.orchestrator_graph import input_orchestrator; print('OK')"`
+- `python eval/run_eval.py --mode multi --file eval/<target_attack>.jsonl --graph <target_graph>`
 
 ## Handoff
-- Latest change: Kept output-side tagging limited to `stage_related` by design, updated `test_output_graph_contract.py` to lock that behavior, and moved `test.py` execution under `if __name__ == "__main__"` so `python -m unittest` no longer makes live API calls during discovery.
-- Verification completed: `python -m unittest test_output_prompt_contract.py test_stage_contract.py test_output_graph_contract.py`, `python -m unittest`, and direct imports of orchestrator/output/all stage graphs all passed on 2026-04-02.
-- Next best action: Check whether queue hygiene needs a filter for tool-call traffic in tool-enabled stages.
+- Latest change: Added `docs/evaluation/data_agent_evaluation.md` as the canonical guide for evaluating retrieval-enabled stage agents, and linked it from `docs/evaluation/stage_evaluation.md`.
+- Verification completed: doc-only update; no code or eval runs were executed for this change.
+- Next best action: write the first replay-style audit doc and attack dataset for one data agent, preferably `job`, using the new trigger/query/evidence rubric.
 
 ## Update Stamp
-- Last updated: 2026-04-02
+- Last updated: 2026-04-03
 - Owner: Codex

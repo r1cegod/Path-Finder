@@ -1,9 +1,10 @@
 # PathFinder — Project Context
 
 ## What This Is
-AI career/university counselor for Vietnamese students. LangGraph multi-agent backend (Python 3.13, Pydantic v2, gpt-4o-mini). FPT SE Scholarship portfolio piece.
+AI career/university counselor for Vietnamese students. LangGraph multi-agent backend (Python 3.13, Pydantic v2, gpt-5.4-mini). FPT SE Scholarship portfolio piece.
 
 ## Context Sources (read these, not this file)
+@docs in general
 @docs/context/docs/PROJECT_CONTEXT.md
 @docs/context/docs/CURRENT_CONTEXT.md
 @docs/architecture/docs/ARCHITECTURE.md
@@ -17,8 +18,7 @@ When something changes, write it to the right doc — never into this file:
 - **State field change** → `docs/architecture/docs/state_architecture.md`
 - **End-of-session summary** → `docs/DEV_LOG.md`
 
-## Code Conventions
-- **Black** 100 chars, **Ruff** linting, **Pylance** basic type checking
+## Development rules
 - All Pydantic models in `backend/data/state.py` — no separate models file
 - `FieldEntry(BaseModel)`: `{content: str, confidence: float}` wraps every extractable field
 - `ConfigDict(extra="forbid")` on all structured output classes
@@ -28,8 +28,5 @@ When something changes, write it to the right doc — never into this file:
 - Agent responses in **Vietnamese**. Code/comments/docs in **English**.
 - `load_dotenv()` MUST run before any `ChatOpenAI` instantiation
 - New state fields need a writer, a reader, and an exit condition
-
-## Test Commands
-- Terminal test: `python test.py`
-- LangGraph Studio: `langgraph dev`
-- Import check: `python -c "from backend.orchestrator_graph import input_orchestrator; print('OK')"`
+- State stage field have their own contract at data/contracts
+- Each time there is a new feature, remember: User need to learn what need to be used multiple times in the future, for one time feature only need understanding

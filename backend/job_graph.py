@@ -43,7 +43,7 @@ class ConfidentOutput(BaseModel):
 
 #llm
 tools = [search]
-llm = ChatOpenAI(model="gpt-5.4-mini")
+llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450)
 agent_llm     = llm.bind_tools(tools)
 confident_llm = llm.with_structured_output(ConfidentOutput)
 

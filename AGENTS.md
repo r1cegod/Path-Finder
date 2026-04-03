@@ -59,3 +59,6 @@ Recent commits use short, direct subjects such as `Frontend update`, `MVP-done`,
 
 ## Security & Configuration Tips
 Do not commit `.env`, `.langgraph_api/`, `venv/`, or local trace artifacts. `load_dotenv()` must run before creating OpenAI clients. Keep student-facing responses in Vietnamese, but keep code, comments, and docs in English.
+
+## Context maintenance 
+Always refine, update this file

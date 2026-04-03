@@ -1,5 +1,8 @@
 # Stage Evaluation: Attack Protocol Log
 
+Reference:
+- For web-enabled `job` / `major` / `uni` stage methodology, use `docs/evaluation/data_agent_evaluation.md` as the canonical retrieval-evaluation guide.
+
 ## 1. Macro Architecture (Evaluation Seam)
 This tracks the evaluation of each Stage Agent across the PathFinder pipeline.
 Pipeline flow for a stage:
@@ -124,4 +127,3 @@ Pipeline flow for a stage:
 **Attack 7 (The Retire-Early Calling):** **PASS**. The `CONTRADICTION DROP` rule executed flawlessly. As soon as the student claimed FIRE at 35, the `work_relationship = calling` confidence crashed from `0.9` down to `0.58`.
 
 *Result:* Purpose Agent is fully hardened against all known evasion, hallucination, and contradiction attack vectors.
-
