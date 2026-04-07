@@ -56,8 +56,11 @@ Desktop.ini
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+.cache/
 threads/
 Trace/
+logs/*
+!logs/DEV_LOG.md
 
 # Jupyter Notebook
 .ipynb_checkpoints

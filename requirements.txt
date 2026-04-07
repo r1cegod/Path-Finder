@@ -10,6 +10,12 @@ langchain-core
 
 # Phase 2 — web fetching
 httpx
+ddgs
+praw
+feedparser
+# Optional JS-heavy extraction fallback:
+# crawl4ai
+# playwright
 
 # Token counting
 tiktoken

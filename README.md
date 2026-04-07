@@ -21,11 +21,18 @@ Send a POST to `/chat` with `{ "session_id": "...", "message": "..." }`.
 LangGraph Studio: `langgraph dev`
 Live in vercel: https://path-finder-rosy.vercel.app
 
+### Documentation:
+Live documentation now lives in the PathFinder vault workspace:
+https://github.com/r1cegod/ADUC-obsidian-vault
+
+The repo `docs/` folder is legacy archive material and should not be treated as canonical.
+
 ### Learning history:
 - Raw python bot
 - Langraph integration
 - First project: https://github.com/r1cegod/FunctionPartner-Amber
 - And now this damn project
+- And also a master obsidian vault: https://github.com/r1cegod/ADUC-obsidian-vault
 
 ### Development History:
 Building from the ground up — Bottom-Up Law. Each node verified in isolation before wiring.
@@ -49,6 +56,15 @@ Building from the ground up — Bottom-Up Law. Each node verified in isolation b
 - [x] Output compiler B2 fully implemented — path debate synthesis logic
 - [x] fully working frontend
 - [x] some evaluation, mvp shipped
+- [x] Goals agent runtime bug fixed — missing prompt format args (is_current_stage, purpose, message_tag) in goals_graph.py
+- [x] Eval pipeline documented — delegation doc at docs/delegated/eval_run_eval.md (2-floor flow, all Python patterns explained)
+- [x] Delegation protocol locked — HOW_TO_USE + 2-floor flow standard for all delegated code (docs/workflows/delegated_feature_how_to.md)
+- [x] CLAUDE.md upgraded — inline auto-update rules table replacing end-of-session batch rule
+- [x] RIASEC/MI quiz seeding fixed — `/test` now writes brain_type/riasec_top to LangGraph checkpointer via `aupdate_state`; thinking_graph sees quiz results
+- [x] `serialize_state` coverage fixed — university now included in completedStages; escalationPending surfaced to frontend
+- [x] Post-escalation backend lock — `main.py chat_stream` gates all graph runs on `escalation_pending`; streams hardcoded VN response with zero graph traversal
+- [x] `vague_turns` counter completed — direct escalation cap at >= 4, documented in state_architecture.md
+- [x] Master vault initialized
 
 ### Q&A:
 **Why?**
@@ -67,6 +83,6 @@ Not the models. State management and edge case routing — troll detection, cont
 The four horse men of development "ME"-Learning (literally), "Claude code"-Reasoning (planning and frontend), "Codex"-Execution (code write, review) and "Gemini-Antigravity"-Evaluate (prompt audit)
 
 ### Logs:
-See `docs/DEV_LOG.md`
+See https://github.com/r1cegod/ADUC-obsidian-vault
 
 *Built by Anh Duc — solo, self-taught, powered with claude, codex and gemini*

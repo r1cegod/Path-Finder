@@ -233,6 +233,8 @@ def counter_manager(state: PathFinderState) -> dict:
         escalation_reasons.append("disengagement_limit: 4 consecutive disengaged turns")
     if new_avoidance >= 4:
         escalation_reasons.append("avoidance_limit: 4 consecutive avoidance turns")
+    if new_vague >= 4:
+        escalation_reasons.append("vague_limit: 4 consecutive vague turns")
     if contradict_count >= 3:
         escalation_reasons.append("contradict_count: 3 consecutive stage contradictions")
     if rebound_count >= 3:

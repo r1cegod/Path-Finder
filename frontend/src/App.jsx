@@ -59,6 +59,7 @@ export default function App() {
         messages={messages}
         isLoading={isLoading}
         onSend={handleSend}
+        locked={appState.escalationPending ?? false}
       />
     </div>
   );

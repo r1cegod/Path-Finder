@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, ArrowUp } from 'lucide-react';
 
-export default function ChatInput({ onSend, isLoading }) {
+export default function ChatInput({ onSend, isLoading, locked }) {
   const [value, setValue] = useState('');
   const textareaRef = useRef(null);
 
@@ -47,6 +47,7 @@ export default function ChatInput({ onSend, isLoading }) {
             value={value}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
+            disabled={locked || isLoading}
             placeholder="Nhập tin nhắn..."
             className="w-full bg-transparent border-0 outline-none resize-none font-sans text-[14px] text-text-pri placeholder:text-text-muted leading-relaxed"
             rows={1}
@@ -60,9 +61,9 @@ export default function ChatInput({ onSend, isLoading }) {
           </div>
           <button
             onClick={handleSend}
-            disabled={value.trim() === '' || isLoading}
+            disabled={locked || value.trim() === '' || isLoading}
             className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              value.trim() === '' || isLoading
+              locked || value.trim() === '' || isLoading
                 ? 'bg-subtle cursor-not-allowed'
                 : 'bg-accent-purple cursor-pointer hover:opacity-90 active:scale-95'
             }`}

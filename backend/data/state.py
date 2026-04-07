@@ -185,6 +185,30 @@ class JobProfile(BaseModel):
     autonomy_level: FieldEntry  # "full" | "managed" | "directed"
 
 
+class JobResearch(BaseModel):
+    need_research: bool = False
+    query_focus: str = ""
+    contradiction_to_test: str = ""
+    search_query: str = ""
+    domain_bucket: str = ""
+    evidence_summary: str = ""
+    cited_sources: list[str] = []
+    market_verdict: str = ""
+    research_complete: bool = False
+
+
+class MajorResearch(BaseModel):
+    need_research: bool = False
+    query_focus: str = ""
+    contradiction_to_test: str = ""
+    search_query: str = ""
+    domain_bucket: str = ""
+    evidence_summary: str = ""
+    cited_sources: list[str] = []
+    market_verdict: str = ""
+    research_complete: bool = False
+
+
 class MajorProfile(BaseModel):
     # ─ Stage 4: HOW do they get qualified? ─────────────────
     done: bool
@@ -200,6 +224,18 @@ class UniProfile(BaseModel):
     target_school: FieldEntry         # Specific school name
     campus_format: FieldEntry         # e.g., "domestic" | "international"
     is_domestic: bool                 # True if Vietnamese school. Output Compiler strictly warns if False.
+
+
+class UniResearch(BaseModel):
+    need_research: bool = False
+    query_focus: str = ""
+    contradiction_to_test: str = ""
+    search_query: str = ""
+    domain_bucket: str = ""
+    evidence_summary: str = ""
+    cited_sources: list[str] = []
+    market_verdict: str = ""
+    research_complete: bool = False
 
 
 class StageCheck(BaseModel):
@@ -258,11 +294,23 @@ class PathFinderState(TypedDict):
     job: JobProfile | None
     # Stage 3. WHERE they land post-study.
 
+    job_research: JobResearch | None
+    # Stage 3 retrieval packet. Written by planner / researcher nodes.
+    # Read by the job synthesizer.
+
+    major_research: MajorResearch | None
+    # Stage 4 retrieval packet. Written by planner / researcher nodes.
+    # Read by the major synthesizer.
+
     major: MajorProfile | None
     # Stage 4. HOW they get qualified.
 
     university: UniProfile | None
     # Stage 5. The Institution (Gatekeeping & ROI limits)
+
+    uni_research: UniResearch | None
+    # Stage 5 retrieval packet. Written by planner / researcher nodes.
+    # Read by the university synthesizer.
 
     path_debate_ready: bool
     # Python-computed by stage_manager each turn.
@@ -376,8 +424,11 @@ DEFAULT_STATE: PathFinderState = {
     "purpose": None,
     "goals": None,
     "job": None,
+    "job_research": None,
+    "major_research": None,
     "major": None,
     "university": None,
+    "uni_research": None,
     "path_debate_ready": False,
     "stage_transitioned": False,
     "compiler_prompt": "",

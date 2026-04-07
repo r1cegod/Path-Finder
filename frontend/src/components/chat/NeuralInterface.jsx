@@ -2,7 +2,7 @@ import { FolderOpen } from 'lucide-react';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 
-export default function NeuralInterface({ messages, isLoading, onSend }) {
+export default function NeuralInterface({ messages, isLoading, onSend, locked }) {
   return (
     <div className="fixed right-0 top-0 w-[340px] h-screen bg-base border-l border-subtle flex flex-col z-50">
       <div className="h-11 flex-shrink-0 flex items-center justify-between px-4 border-b border-subtle">
@@ -15,7 +15,7 @@ export default function NeuralInterface({ messages, isLoading, onSend }) {
       <div className="flex-1 overflow-hidden">
         <MessageList messages={messages} isLoading={isLoading} />
       </div>
-      <ChatInput onSend={onSend} isLoading={isLoading} />
+      <ChatInput onSend={onSend} isLoading={isLoading} locked={locked} />
     </div>
   );
 }

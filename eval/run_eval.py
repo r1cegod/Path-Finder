@@ -106,6 +106,48 @@ CANONICAL_GRAPHS: dict[str, GraphSpec] = {
         default_queue="messages",
         current_stage=None,
     ),
+    "thinking_eval": GraphSpec(
+        key="thinking_eval",
+        module_path="backend.evaluation_graph",
+        graph_attr="thinking_eval_graph",
+        default_queue="thinking_style_message",
+        current_stage="thinking",
+    ),
+    "purpose_eval": GraphSpec(
+        key="purpose_eval",
+        module_path="backend.evaluation_graph",
+        graph_attr="purpose_eval_graph",
+        default_queue="purpose_message",
+        current_stage="purpose",
+    ),
+    "goals_eval": GraphSpec(
+        key="goals_eval",
+        module_path="backend.evaluation_graph",
+        graph_attr="goals_eval_graph",
+        default_queue="goals_message",
+        current_stage="goals",
+    ),
+    "job_eval": GraphSpec(
+        key="job_eval",
+        module_path="backend.evaluation_graph",
+        graph_attr="job_eval_graph",
+        default_queue="job_message",
+        current_stage="job",
+    ),
+    "major_eval": GraphSpec(
+        key="major_eval",
+        module_path="backend.evaluation_graph",
+        graph_attr="major_eval_graph",
+        default_queue="major_message",
+        current_stage="major",
+    ),
+    "uni_eval": GraphSpec(
+        key="uni_eval",
+        module_path="backend.evaluation_graph",
+        graph_attr="uni_eval_graph",
+        default_queue="uni_message",
+        current_stage="university",
+    ),
 }
 
 GRAPH_ALIASES = {
@@ -120,6 +162,13 @@ GRAPH_ALIASES = {
     "output_graph": "output",
     "input_orchestrator": "orchestrator",
     "orchestrator_graph": "orchestrator",
+    "thinking_eval_graph": "thinking_eval",
+    "purpose_eval_graph": "purpose_eval",
+    "goals_eval_graph": "goals_eval",
+    "job_eval_graph": "job_eval",
+    "major_eval_graph": "major_eval",
+    "uni_eval_graph": "uni_eval",
+    "university_eval_graph": "uni_eval",
 }
 
 QUEUE_KEYS = (

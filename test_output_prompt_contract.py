@@ -1,6 +1,6 @@
 import unittest
 
-from backend.data.prompts.output import _compute_stage_status
+from backend.data.prompts.output import _compute_stage_status, _extract_probe_directive
 from backend.data.state import (
     DEFAULT_STATE,
     FieldEntry,
@@ -93,6 +93,20 @@ class OutputPromptContractTest(unittest.TestCase):
 
         for field in dead_fields:
             self.assertNotIn(field, DEFAULT_STATE)
+
+    def test_probe_directive_skips_passive_probe_lines(self):
+        stage_reasoning = (
+            "[GOALS]\n"
+            "summary\n"
+            "PROBE: income_target - force a concrete number\n\n"
+            "[PURPOSE]\n"
+            "summary\n"
+            "PROBE: NONE (passive analysis only)"
+        )
+
+        probe = _extract_probe_directive(stage_reasoning)
+
+        self.assertEqual(probe, "PROBE: income_target - force a concrete number")
 
 
 if __name__ == "__main__":

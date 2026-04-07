@@ -32,44 +32,65 @@ def serialize_state(result: dict) -> dict:
     """Map PathFinderState → frontend appState shape."""
     stage = result.get("stage") or {}
     current_stage = stage.get("current_stage", "thinking") if isinstance(stage, dict) else "thinking"
+    stage_alias = {"university": "uni"}
 
     completed = []
-    for key in ["thinking", "purpose", "goals", "job", "major"]:
+    for key in ["thinking", "purpose", "goals", "job", "major", "university"]:
         profile = result.get(key)
         if isinstance(profile, dict) and profile.get("done"):
-            completed.append(key)
+            completed.append(stage_alias.get(key, key))
 
     return {
-        "currentStage":    current_stage,
-        "completedStages": completed,
-        "turn_count":      result.get("turn_count", 0),
-        "thinking":        result.get("thinking"),
-        "purpose":         result.get("purpose"),
-        "goals":           result.get("goals"),
-        "job":             result.get("job"),
-        "major":           result.get("major"),
-        "uni":             result.get("university"),
-        "user_tag":        result.get("user_tag"),
+        "currentStage":      stage_alias.get(current_stage, current_stage),
+        "completedStages":   completed,
+        "turn_count":        result.get("turn_count", 0),
+        "thinking":          result.get("thinking"),
+        "purpose":           result.get("purpose"),
+        "goals":             result.get("goals"),
+        "job":               result.get("job"),
+        "major":             result.get("major"),
+        "uni":               result.get("university"),
+        "user_tag":          result.get("user_tag"),
+        "escalationPending": result.get("escalation_pending", False),
     }
 
 
 @app.post("/test/{session_id}")
-async def test_submit(session_id: str, request: TestRequest):  # noqa: ARG001
+async def test_submit(session_id: str, request: TestRequest):
+    thinking_patch = {
+        **({"brain_type": request.brain_type} if request.brain_type else {}),
+        **({"riasec_top": request.riasec_top} if request.riasec_top else {}),
+    }
+    config = {"configurable": {"thread_id": session_id}}
+
+    # Merge into existing thinking (may be None for new session, or partially filled by scoring)
+    snapshot = await input_orchestrator.aget_state(config)
+    current_thinking = snapshot.values.get("thinking") or {}
+    if hasattr(current_thinking, "model_dump"):
+        current_thinking = current_thinking.model_dump()
+    merged_thinking = {**current_thinking, **thinking_patch}
+    await input_orchestrator.aupdate_state(config, {"thinking": merged_thinking})
+
     async def generate():
-        # Direct state write — no LLM. Frontend merges into appState.thinking.
-        thinking_patch = {
-            **({"brain_type": request.brain_type} if request.brain_type else {}),
-            **({"riasec_top": request.riasec_top} if request.riasec_top else {}),
-        }
         yield f"data: {json.dumps({'type': 'state', 'data': {'thinking': thinking_patch}})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
+_LOCKED_RESPONSE = "Cuộc trò chuyện của chúng ta đã kết thúc ở đây. Nếu em muốn tiếp tục, hãy bắt đầu một phiên mới."
+
 @app.post("/chat/{session_id}")
 async def chat_stream(session_id: str, request: ChatRequest):
-    state  = {"messages": [{"role": "user", "content": request.message}]}
     config = {"configurable": {"thread_id": session_id}}
+
+    snapshot = await input_orchestrator.aget_state(config)
+    if snapshot.values.get("escalation_pending"):
+        async def locked_stream():
+            yield f"data: {json.dumps({'type': 'token', 'content': _LOCKED_RESPONSE})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return StreamingResponse(locked_stream(), media_type="text/event-stream")
+
+    state  = {"messages": [{"role": "user", "content": request.message}]}
 
     async def generate():
         try:

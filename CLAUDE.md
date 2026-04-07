@@ -1,32 +1,62 @@
-# PathFinder — Project Context
+# CLAUDE.md — PathFinder Repo Entry Point
 
-## What This Is
-AI career/university counselor for Vietnamese students. LangGraph multi-agent backend (Python 3.13, Pydantic v2, gpt-5.4-mini). FPT SE Scholarship portfolio piece.
+## STOP — Read the Vault First
 
-## Context Sources (read these, not this file)
-@docs in general
-@docs/context/docs/PROJECT_CONTEXT.md
-@docs/context/docs/CURRENT_CONTEXT.md
-@docs/architecture/docs/ARCHITECTURE.md
-@docs/architecture/docs/state_architecture.md
+**Do not read a single file in this repo until you have read:**
 
-## Auto-Update Rule
-When something changes, write it to the right doc — never into this file:
-- **Live work / blockers / handoff** → `docs/context/docs/CURRENT_CONTEXT.md`
-- **Durable decisions / locked facts** → `docs/context/docs/PROJECT_CONTEXT.md`
-- **Architecture change / new ADR** → `docs/architecture/docs/ARCHITECTURE.md`
-- **State field change** → `docs/architecture/docs/state_architecture.md`
-- **End-of-session summary** → `docs/DEV_LOG.md`
+```
+D:\ANHDUC\ADUC_vault\ADUC\CLAUDE.md
+```
 
-## Development rules
-- All Pydantic models in `backend/data/state.py` — no separate models file
-- `FieldEntry(BaseModel)`: `{content: str, confidence: float}` wraps every extractable field
-- `ConfigDict(extra="forbid")` on all structured output classes
-- `model_copy(update={...})` for Pydantic updates
-- Absolute imports: `from backend.data.state import ...`
-- Prompts are f-string templates in `backend/data/prompts/{stage}.py`
-- Agent responses in **Vietnamese**. Code/comments/docs in **English**.
-- `load_dotenv()` MUST run before any `ChatOpenAI` instantiation
-- New state fields need a writer, a reader, and an exit condition
-- State stage field have their own contract at data/contracts
-- Each time there is a new feature, remember: User need to learn what need to be used multiple times in the future, for one time feature only need understanding
+The vault is the brain. This repo is the body. Operating on the body without reading the brain is the failure mode — you will work on the wrong thing, in the wrong order, with the wrong context.
+
+The vault holds: who the user is, what is active right now, what is already decided, what must not be touched, the session start protocol, the loading order, the self-healing contract, and the dev rules. None of that is in this repo. If you skip the vault, you are flying blind.
+
+**The vault path is the first action of every session. No exceptions.**
+
+---
+
+## Repo Structure
+
+| Path | Role |
+|---|---|
+| `main.py` | FastAPI app entrypoint |
+| `backend/` | All graph code |
+| `backend/data/state.py` | `PathFinderState` TypedDict + all Pydantic models |
+| `backend/data/prompts/` | Per-stage system prompts |
+| `frontend/` | React frontend |
+| `eval/` | Eval pipeline — read `eval/HOW_TO_USE.md` first |
+| `docs (archived)/` | Old docs — vault holds canonical docs, not this folder |
+| `logs/` | Repo-local mirrors and durable logs |
+
+`logs/DEV_LOG.md` is the one mirrored exception: the canonical source is `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\DEV_LOG.md`, but every new dev-log entry must be written to both files.
+
+---
+
+## Development Rules (Active)
+
+Mirrored from vault `context/me.md`. Canonical copy lives there — edit both here and there.
+
+### Engineering
+
+- **Bug-First:** fix confirmed breaks before adding features.
+- **Bottom-Up Law:** build and verify components in isolation before wiring graphs.
+- **One Wire Per Response:** don't dump multiple implementation steps at once.
+- **Output Audit:** before writing code — am I giving the final custom answer or the blueprint to derive it? Give the blueprint.
+
+### Code Style
+
+- **Fresh Rule:** when teaching patterns, use real, complete, runnable code with generic official-doc names (`bot`, `app`, `builder`, `graph`). Never use project-specific names in example blocks. The gap between the official example and the codebase IS the learning.
+- **Official Doc Rule:** when introducing a new class or method for the first time, show the full parameter surface with inline comments on unused params.
+- **X-Ray Annotation:** explanations go inside code blocks as inline ASCII arrows (`←`, `↓`, `→`). Never put explanation paragraphs below a code block.
+
+### Communication
+
+- **Direct, no filler.** No "Great question!", no "Certainly!", no performative helpfulness.
+- **The Gatekeeper:** if user pivots with <30 min of work remaining on the current task, challenge the pivot first.
+- **The Ownership Test:** if the user can't defend every line, stop and explain the gap before moving forward.
+
+### Diagrams
+
+- ASCII diagrams over prose when explaining flow or architecture.
+- Chronological data flow blocks over walls of text.

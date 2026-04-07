@@ -163,7 +163,9 @@ export default function StageTab({ appState }) {
   ];
 
   const uniFields = [
-    { label: '', value: appState.uni?.value?.content, confidence: appState.uni?.value?.confidence ?? 0 },
+    { label: 'TRƯỜNG', value: appState.uni?.target_school?.content, confidence: appState.uni?.target_school?.confidence ?? 0 },
+    { label: 'UY TÍN', value: appState.uni?.prestige_requirement?.content, confidence: appState.uni?.prestige_requirement?.confidence ?? 0 },
+    { label: 'HÌNH THỨC', value: appState.uni?.campus_format?.content, confidence: appState.uni?.campus_format?.confidence ?? 0 },
   ];
 
   return (
