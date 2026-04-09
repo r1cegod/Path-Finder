@@ -9,6 +9,7 @@ from backend.data.contracts.research_sources import (
     UNIVERSITY_ADMISSIONS_DOMAINS,
     UNIVERSITY_OFFICIAL_DOMAINS,
 )
+from backend.data.contracts.confidence import DONE_CONFIDENCE_THRESHOLD
 from backend.data.contracts.stages import (
     STAGE_TO_PROFILE_KEY,
     STAGE_TO_QUEUE_KEY,
@@ -21,6 +22,7 @@ from backend.data.prompts.uni import (
 )
 from backend.data.state import PathFinderState, StageReasoning, UniProfile, UniResearch
 from backend.retrieval import SearchRequest, format_search_response, search_web
+from backend.stage_profile_utils import apply_reopen_invalidation, normalize_stage_profile
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -54,9 +56,18 @@ class UniAnalysis(BaseModel):
     probe_instruction: str
 
 
-planner_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=300).with_structured_output(UniResearchPlan)
-analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(UniAnalysis)
-confident_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(ConfidentOutput)
+planner_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=300).with_structured_output(
+    UniResearchPlan,
+    method="function_calling",
+)
+analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    UniAnalysis,
+    method="function_calling",
+)
+confident_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    ConfidentOutput,
+    method="function_calling",
+)
 
 
 def _merge_domains(*groups: tuple[str, ...]) -> tuple[str, ...]:
@@ -92,8 +103,8 @@ def get_uni_research(state: PathFinderState) -> UniResearch:
 def get_current_stage(state: PathFinderState) -> str:
     stage_raw = state.get("stage") or {}
     if isinstance(stage_raw, dict):
-        return stage_raw.get("current_stage", STAGE)
-    return getattr(stage_raw, "current_stage", STAGE)
+        return stage_raw.get("anchor_stage") or stage_raw.get("current_stage", STAGE)
+    return getattr(stage_raw, "anchor_stage", "") or getattr(stage_raw, "current_stage", STAGE)
 
 
 def _extract_field_meta(field: object) -> tuple[str, float]:
@@ -117,7 +128,7 @@ def _infer_probe_field(uni: object) -> str:
     for field_name in ordered_fields:
         field = uni.get(field_name) if isinstance(uni, dict) else getattr(uni, field_name, None)
         content, confidence = _extract_field_meta(field)
-        if confidence < 0.7 or content in {"", "unclear", "not discussed", "not yet"}:
+        if confidence <= DONE_CONFIDENCE_THRESHOLD or content in {"", "unclear", "not discussed", "not yet"}:
             return field_name
 
     return "target_school"
@@ -190,8 +201,20 @@ def confident_node(state: PathFinderState) -> dict:
     messages = state[QUEUE_KEY]
     uni = state.get(PROFILE_KEY)
 
-    response = confident_llm.invoke([SystemMessage(UNI_CONFIDENT_PROMPT.format(uni=uni or ""))] + messages)
+    response = confident_llm.invoke([SystemMessage(UNI_CONFIDENT_PROMPT.format(
+        uni=uni or "",
+    ))] + messages)
     return {PROFILE_KEY: response.university.model_dump()}
+
+
+def reopen_invalidator_node(state: PathFinderState) -> dict:
+    raw = state.get(PROFILE_KEY)
+    uni = UniProfile(**raw) if isinstance(raw, dict) else raw
+    if uni is None:
+        return {}
+    reopened = apply_reopen_invalidation(state, STAGE, uni)
+    normalized = normalize_stage_profile(STAGE, reopened)
+    return {PROFILE_KEY: normalized.model_dump()}
 
 
 def uni_research_planner(state: PathFinderState) -> dict:
@@ -299,11 +322,13 @@ def route_after_planner(state: PathFinderState) -> str:
 
 builder = StateGraph(PathFinderState)
 builder.add_node("confident", confident_node)
+builder.add_node("reopen_invalidator", reopen_invalidator_node)
 builder.add_node("uni_research_planner", uni_research_planner)
 builder.add_node("uni_researcher", uni_researcher)
 builder.add_node("uni_synthesizer", uni_synthesizer)
 builder.add_edge(START, "confident")
-builder.add_edge("confident", "uni_research_planner")
+builder.add_edge("confident", "reopen_invalidator")
+builder.add_edge("reopen_invalidator", "uni_research_planner")
 builder.add_conditional_edges(
     "uni_research_planner",
     route_after_planner,

@@ -147,8 +147,6 @@ Extract data for these fields:
   Copy character-for-character. Do NOT paraphrase or correct grammar.
   If no strong quote exists yet: content="not yet", confidence=0.0.
 
-- `done`: True when core_desire, work_relationship, location_vision, AND risk_philosophy
-  all have confidence > 0.7. ai_stance does NOT gate done.
 </definitions>
 
 <instructions>
@@ -161,17 +159,22 @@ Extract data for these fields:
 4. Assign a strict confidence score (0.0 to 1.0) using the VERIFICATION CAP:
    - < 0.5: vague, contradictory, or empty bucket words like "help people," "make an impact," "be successful."
    - 0.5-0.6 (SELF-REPORT CAP): student explicitly stated a preference but has NOT made a concrete sacrifice for it. This is a HARD ceiling: a mere statement of desire MUST stay <= 0.6.
-   - > 0.7: student named a SPECIFIC, CONCRETE desire AND sacrificed a competing option to prove it. Enthusiasm is not a defense.
+   - 0.7-0.8: student showed meaningful pressure-tested evidence, but the claim is still not lock-safe.
+     Use this band when the desire is strong yet the sacrifice, contradiction resolution, or repeatability is still incomplete.
+   - > 0.8: student named a SPECIFIC, CONCRETE desire AND sacrificed a competing option to prove it.
+     Reserve this band for fields that would survive downstream done counting and reopening. Enthusiasm is not a defense.
    - DEFLECTION PENALTY: if a student deflects a direct trade-off test by saying "I'll just work hard" or "Others do it" instead of accepting the cost, they have FAILED the squeeze. Confidence MUST drop to < 0.5.
    - DETAIL IS NOT DEFENSE: providing hyper-detailed fantasies (for example "sit in a cafe in Da Lat", "fly to Thailand") is NOT a sacrifice. It is just detailed enthusiasm. Confidence MUST remain < 0.6 until they explicitly accept a painful real-world cost.
    - LOCATION FANTASY CAP: digital nomad / remote travel imagery is NEVER enough to lock `location_vision`. If the claim is still just lifestyle projection without accepted structure loss, income loss, visa/logistics burden, or teamwork cost, `location_vision` MUST stay <= 0.6.
    - AI APATHY RULE: claiming to use AI just for basic convenience ("write emails", "summarize") is passive. It does NOT qualify as `leverage` > 0.6. Confidence must stay < 0.5 until they show how it structurally amplifies their core work.
+   - DONE COUNT RULE: downstream Python only counts purpose fields as done when confidence > 0.8.
+     If a field still looks contestable, contradictory, or cheaply stated, keep it at or below 0.8.
 </instructions>
 
 <guardrails>
 - ONLY extract ONE sentence or phrase per field `content`. Keep it concise.
 - CONTRADICTION DROP: if a student's new statement logically contradicts an earlier strong field, you MUST immediately force the confidence of that field back down to < 0.5 and mark the content as "unclear" or the new reality. Do not wait for them to formally retract the word.
-- NEVER overwrite a field with confidence > 0.7 UNLESS they trigger a CONTRADICTION DROP or explicitly change their mind.
+- NEVER overwrite a field with confidence > 0.8 UNLESS they trigger a CONTRADICTION DROP or explicitly change their mind.
 - Do NOT invent information. Unclear = content "unclear", score < 0.5.
 - Not yet discussed = content "not discussed", score 0.0.
 - NEVER paraphrase or truncate key_quote. If it spans two sentences to make sense, extract BOTH sentences verbatim.

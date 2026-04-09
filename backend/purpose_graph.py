@@ -5,12 +5,14 @@ from pydantic import BaseModel, ConfigDict
 from dotenv import load_dotenv
 import os
 from backend.data.state import PathFinderState, PurposeProfile, StageReasoning
+from backend.data.contracts.confidence import DONE_CONFIDENCE_THRESHOLD
 from backend.data.prompts.purpose import PURPOSE_DRILL_PROMPT, CONFIDENT_PROMPT
 from backend.data.contracts.stages import (
     STAGE_TO_PROFILE_KEY,
     STAGE_TO_QUEUE_KEY,
     STAGE_TO_REASONING_KEY,
 )
+from backend.stage_profile_utils import apply_reopen_invalidation, normalize_stage_profile
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -31,8 +33,8 @@ def get_stage_reasoning(state: PathFinderState) -> StageReasoning:
 def get_current_stage(state: PathFinderState) -> str:
     stage_raw = state.get("stage") or {}
     if isinstance(stage_raw, dict):
-        return stage_raw.get("current_stage", STAGE)
-    return getattr(stage_raw, "current_stage", STAGE)
+        return stage_raw.get("anchor_stage") or stage_raw.get("current_stage", STAGE)
+    return getattr(stage_raw, "anchor_stage", "") or getattr(stage_raw, "current_stage", STAGE)
 
 
 def _extract_field_meta(field: object) -> tuple[str, float]:
@@ -61,7 +63,7 @@ def _infer_probe_field(purpose: object) -> str:
         else:
             field = getattr(purpose, field_name, None)
         content, confidence = _extract_field_meta(field)
-        if confidence < 0.7 or content in {"", "unclear", "not discussed", "not yet"}:
+        if confidence <= DONE_CONFIDENCE_THRESHOLD or content in {"", "unclear", "not discussed", "not yet"}:
             return field_name
 
     return "core_desire"
@@ -121,8 +123,14 @@ class ConfidentOutput(BaseModel):
 
 # llm
 llm          = ChatOpenAI(model="gpt-5.4-mini")
-analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(PurposeAnalysis)
-confident_llm = llm.with_structured_output(ConfidentOutput)
+analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    PurposeAnalysis,
+    method="function_calling",
+)
+confident_llm = llm.with_structured_output(
+    ConfidentOutput,
+    method="function_calling",
+)
 
 # nodes
 def purpose_agent(state: PathFinderState) -> dict:
@@ -159,15 +167,29 @@ def confident_node(state: PathFinderState) -> dict:
     purpose  = state.get(PROFILE_KEY)
 
     response = confident_llm.invoke(
-        [SystemMessage(CONFIDENT_PROMPT.format(purpose=purpose or ""))] + messages
+        [SystemMessage(CONFIDENT_PROMPT.format(
+            purpose=purpose or "",
+        ))] + messages
     )
     return {PROFILE_KEY: response.purpose.model_dump()}
+
+
+def reopen_invalidator_node(state: PathFinderState) -> dict:
+    raw = state.get(PROFILE_KEY)
+    purpose = PurposeProfile(**raw) if isinstance(raw, dict) else raw
+    if purpose is None:
+        return {}
+    reopened = apply_reopen_invalidation(state, STAGE, purpose)
+    normalized = normalize_stage_profile(STAGE, reopened)
+    return {PROFILE_KEY: normalized.model_dump()}
 
 # graph
 builder = StateGraph(PathFinderState)
 builder.add_node("purpose_agent", purpose_agent)
 builder.add_node("confident", confident_node)
+builder.add_node("reopen_invalidator", reopen_invalidator_node)
 builder.add_edge(START, "confident")
-builder.add_edge("confident", "purpose_agent")
+builder.add_edge("confident", "reopen_invalidator")
+builder.add_edge("reopen_invalidator", "purpose_agent")
 builder.add_edge("purpose_agent", END)
 purpose_graph = builder.compile()

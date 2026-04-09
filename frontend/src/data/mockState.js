@@ -1,5 +1,6 @@
 export const DEFAULT_APP_STATE = {
   currentStage:    'thinking',
+  forcedStage:     '',
   completedStages: [],
   turn_count:      0,
   thinking:        null,

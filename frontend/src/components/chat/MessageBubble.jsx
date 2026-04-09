@@ -1,5 +1,5 @@
 export default function MessageBubble({ message }) {
-  const { role, content, timestamp } = message;
+  const { role, content, timestamp, isError } = message;
   const fmt = (d) => d.toTimeString().slice(0, 8);
 
   const formatContent = (text) => {
@@ -20,7 +20,7 @@ export default function MessageBubble({ message }) {
   if (role === 'assistant') {
     return (
       <div className="flex flex-col">
-        <div className="font-mono text-[13px] text-sys-msg leading-relaxed break-words whitespace-pre-wrap">
+        <div className={`font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap ${isError ? 'text-accent-red' : 'text-sys-msg'}`}>
           {formatContent(content)}
         </div>
         <div className="flex justify-end mt-2">

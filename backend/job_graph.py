@@ -16,12 +16,14 @@ from backend.data.contracts.research_sources import (
     JOB_ROLE_REALITY_DOMAINS,
     JOB_SALARY_DOMAINS,
 )
+from backend.data.contracts.confidence import DONE_CONFIDENCE_THRESHOLD
 from backend.retrieval import SearchRequest, format_search_response, search_web
 from backend.data.contracts.stages import (
     STAGE_TO_PROFILE_KEY,
     STAGE_TO_QUEUE_KEY,
     STAGE_TO_REASONING_KEY,
 )
+from backend.stage_profile_utils import apply_reopen_invalidation, normalize_stage_profile
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -55,9 +57,18 @@ class JobAnalysis(BaseModel):
     probe_instruction: str
 
 
-planner_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=300).with_structured_output(JobResearchPlan)
-analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(JobAnalysis)
-confident_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(ConfidentOutput)
+planner_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=300).with_structured_output(
+    JobResearchPlan,
+    method="function_calling",
+)
+analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    JobAnalysis,
+    method="function_calling",
+)
+confident_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    ConfidentOutput,
+    method="function_calling",
+)
 
 
 DOMAIN_BUCKETS: dict[str, tuple[str, ...]] = {
@@ -87,8 +98,8 @@ def get_job_research(state: PathFinderState) -> JobResearch:
 def get_current_stage(state: PathFinderState) -> str:
     stage_raw = state.get("stage") or {}
     if isinstance(stage_raw, dict):
-        return stage_raw.get("current_stage", STAGE)
-    return getattr(stage_raw, "current_stage", STAGE)
+        return stage_raw.get("anchor_stage") or stage_raw.get("current_stage", STAGE)
+    return getattr(stage_raw, "anchor_stage", "") or getattr(stage_raw, "current_stage", STAGE)
 
 
 def _extract_field_meta(field: object) -> tuple[str, float]:
@@ -113,7 +124,7 @@ def _infer_probe_field(job: object) -> str:
     for field_name in ordered_fields:
         field = job.get(field_name) if isinstance(job, dict) else getattr(job, field_name, None)
         content, confidence = _extract_field_meta(field)
-        if confidence < 0.7 or content in {"", "unclear", "not discussed", "not yet"}:
+        if confidence <= DONE_CONFIDENCE_THRESHOLD or content in {"", "unclear", "not discussed", "not yet"}:
             return field_name
 
     return "day_to_day"
@@ -187,8 +198,20 @@ def confident_node(state: PathFinderState) -> dict:
     messages = state[QUEUE_KEY]
     job = state.get(PROFILE_KEY)
 
-    response = confident_llm.invoke([SystemMessage(JOB_CONFIDENT_PROMPT.format(job=job or ""))] + messages)
+    response = confident_llm.invoke([SystemMessage(JOB_CONFIDENT_PROMPT.format(
+        job=job or "",
+    ))] + messages)
     return {PROFILE_KEY: response.job.model_dump()}
+
+
+def reopen_invalidator_node(state: PathFinderState) -> dict:
+    raw = state.get(PROFILE_KEY)
+    job = JobProfile(**raw) if isinstance(raw, dict) else raw
+    if job is None:
+        return {}
+    reopened = apply_reopen_invalidation(state, STAGE, job)
+    normalized = normalize_stage_profile(STAGE, reopened)
+    return {PROFILE_KEY: normalized.model_dump()}
 
 
 def job_research_planner(state: PathFinderState) -> dict:
@@ -280,11 +303,13 @@ def route_after_planner(state: PathFinderState) -> str:
 
 builder = StateGraph(PathFinderState)
 builder.add_node("confident", confident_node)
+builder.add_node("reopen_invalidator", reopen_invalidator_node)
 builder.add_node("job_research_planner", job_research_planner)
 builder.add_node("job_researcher", job_researcher)
 builder.add_node("job_synthesizer", job_synthesizer)
 builder.add_edge(START, "confident")
-builder.add_edge("confident", "job_research_planner")
+builder.add_edge("confident", "reopen_invalidator")
+builder.add_edge("reopen_invalidator", "job_research_planner")
 builder.add_conditional_edges(
     "job_research_planner",
     route_after_planner,

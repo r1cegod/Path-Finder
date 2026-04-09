@@ -4,7 +4,7 @@ import ChatInput from './ChatInput';
 
 export default function NeuralInterface({ messages, isLoading, onSend, locked }) {
   return (
-    <div className="fixed right-0 top-0 w-[340px] h-screen bg-base border-l border-subtle flex flex-col z-50">
+    <div className="relative z-50 flex h-[42dvh] w-full min-h-0 flex-col border-t border-subtle bg-base md:fixed md:right-0 md:top-0 md:h-dvh md:w-[340px] md:border-l md:border-t-0">
       <div className="h-11 flex-shrink-0 flex items-center justify-between px-4 border-b border-subtle">
         <div className="flex gap-2 items-center">
           <FolderOpen className="w-[12px] h-[12px] text-text-muted" />
@@ -12,7 +12,7 @@ export default function NeuralInterface({ messages, isLoading, onSend, locked })
         </div>
         <span className="font-mono text-[10px] text-text-muted tracking-[0.05em]">v1.0.4-LTS</span>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <MessageList messages={messages} isLoading={isLoading} />
       </div>
       <ChatInput onSend={onSend} isLoading={isLoading} locked={locked} />

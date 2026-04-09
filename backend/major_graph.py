@@ -7,6 +7,7 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict
 
 from backend.data.contracts.research_sources import MAJOR_REALITY_DOMAINS
+from backend.data.contracts.confidence import DONE_CONFIDENCE_THRESHOLD
 from backend.data.contracts.stages import (
     STAGE_TO_PROFILE_KEY,
     STAGE_TO_QUEUE_KEY,
@@ -19,6 +20,7 @@ from backend.data.prompts.major import (
 )
 from backend.data.state import MajorProfile, MajorResearch, PathFinderState, StageReasoning
 from backend.retrieval import SearchRequest, format_search_response, search_web
+from backend.stage_profile_utils import apply_reopen_invalidation, normalize_stage_profile
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -51,9 +53,18 @@ class MajorAnalysis(BaseModel):
     probe_instruction: str
 
 
-planner_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=300).with_structured_output(MajorResearchPlan)
-analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(MajorAnalysis)
-confident_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(ConfidentOutput)
+planner_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=300).with_structured_output(
+    MajorResearchPlan,
+    method="function_calling",
+)
+analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    MajorAnalysis,
+    method="function_calling",
+)
+confident_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    ConfidentOutput,
+    method="function_calling",
+)
 
 
 DOMAIN_BUCKETS: dict[str, tuple[str, ...]] = {
@@ -84,8 +95,8 @@ def get_major_research(state: PathFinderState) -> MajorResearch:
 def get_current_stage(state: PathFinderState) -> str:
     stage_raw = state.get("stage") or {}
     if isinstance(stage_raw, dict):
-        return stage_raw.get("current_stage", STAGE)
-    return getattr(stage_raw, "current_stage", STAGE)
+        return stage_raw.get("anchor_stage") or stage_raw.get("current_stage", STAGE)
+    return getattr(stage_raw, "anchor_stage", "") or getattr(stage_raw, "current_stage", STAGE)
 
 
 def _extract_field_meta(field: object) -> tuple[str, float]:
@@ -109,7 +120,7 @@ def _infer_probe_field(major: object) -> str:
     for field_name in ordered_fields:
         field = major.get(field_name) if isinstance(major, dict) else getattr(major, field_name, None)
         content, confidence = _extract_field_meta(field)
-        if confidence < 0.7 or content in {"", "unclear", "not discussed", "not yet"}:
+        if confidence <= DONE_CONFIDENCE_THRESHOLD or content in {"", "unclear", "not discussed", "not yet"}:
             return field_name
 
     return "required_skills_coverage"
@@ -182,8 +193,20 @@ def confident_node(state: PathFinderState) -> dict:
     messages = state[QUEUE_KEY]
     major = state.get(PROFILE_KEY)
 
-    response = confident_llm.invoke([SystemMessage(MAJOR_CONFIDENT_PROMPT.format(major=major or ""))] + messages)
+    response = confident_llm.invoke([SystemMessage(MAJOR_CONFIDENT_PROMPT.format(
+        major=major or "",
+    ))] + messages)
     return {PROFILE_KEY: response.major.model_dump()}
+
+
+def reopen_invalidator_node(state: PathFinderState) -> dict:
+    raw = state.get(PROFILE_KEY)
+    major = MajorProfile(**raw) if isinstance(raw, dict) else raw
+    if major is None:
+        return {}
+    reopened = apply_reopen_invalidation(state, STAGE, major)
+    normalized = normalize_stage_profile(STAGE, reopened)
+    return {PROFILE_KEY: normalized.model_dump()}
 
 
 def major_research_planner(state: PathFinderState) -> dict:
@@ -279,11 +302,13 @@ def route_after_planner(state: PathFinderState) -> str:
 
 builder = StateGraph(PathFinderState)
 builder.add_node("confident", confident_node)
+builder.add_node("reopen_invalidator", reopen_invalidator_node)
 builder.add_node("major_research_planner", major_research_planner)
 builder.add_node("major_researcher", major_researcher)
 builder.add_node("major_synthesizer", major_synthesizer)
 builder.add_edge(START, "confident")
-builder.add_edge("confident", "major_research_planner")
+builder.add_edge("confident", "reopen_invalidator")
+builder.add_edge("reopen_invalidator", "major_research_planner")
 builder.add_conditional_edges(
     "major_research_planner",
     route_after_planner,

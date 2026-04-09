@@ -5,12 +5,14 @@ from pydantic import BaseModel, ConfigDict
 from dotenv import load_dotenv
 import os
 from backend.data.state import PathFinderState, ThinkingProfile, StageReasoning
+from backend.data.contracts.confidence import DONE_CONFIDENCE_THRESHOLD
 from backend.data.prompts.thinking import THINKING_DRILL_PROMPT, CONFIDENT_PROMPT
 from backend.data.contracts.stages import (
     STAGE_TO_PROFILE_KEY,
     STAGE_TO_QUEUE_KEY,
     STAGE_TO_REASONING_KEY,
 )
+from backend.stage_profile_utils import apply_reopen_invalidation, normalize_stage_profile
 
 #prep
 load_dotenv()
@@ -39,8 +41,8 @@ def get_thinking_profile(state: PathFinderState) -> ThinkingProfile | None:
 def get_current_stage(state: PathFinderState) -> str:
     stage_raw = state.get("stage") or {}
     if isinstance(stage_raw, dict):
-        return stage_raw.get("current_stage", STAGE)
-    return getattr(stage_raw, "current_stage", STAGE)
+        return stage_raw.get("anchor_stage") or stage_raw.get("current_stage", STAGE)
+    return getattr(stage_raw, "anchor_stage", "") or getattr(stage_raw, "current_stage", STAGE)
 
 
 def _extract_field_meta(field: object) -> tuple[str, float]:
@@ -86,11 +88,8 @@ def _apply_verification_caps(profile: ThinkingProfile, messages: list[object]) -
             if capped_field is not field:
                 updates[field_name] = capped_field
 
-    effective_profile = profile.model_copy(update=updates) if updates else profile
-    done = all(getattr(effective_profile, field_name).confidence > 0.7 for field_name in conversational_fields)
-    if effective_profile.done != done:
-        effective_profile = effective_profile.model_copy(update={"done": done})
-    return effective_profile
+    capped = profile.model_copy(update=updates) if updates else profile
+    return normalize_stage_profile(STAGE, capped)
 
 
 def _infer_probe_field(thinking: object) -> str:
@@ -110,7 +109,7 @@ def _infer_probe_field(thinking: object) -> str:
         else:
             field = getattr(thinking, field_name, None)
         content, confidence = _extract_field_meta(field)
-        if confidence < 0.7 or content in {"", "unclear", "not discussed", "not yet"}:
+        if confidence <= DONE_CONFIDENCE_THRESHOLD or content in {"", "unclear", "not discussed", "not yet"}:
             return field_name
 
     return "learning_mode"
@@ -167,8 +166,14 @@ class ConfidentOutput(BaseModel):
 
 # llm
 llm          = ChatOpenAI(model="gpt-5.4-mini")
-analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(ThinkingAnalysis)
-confident_llm = llm.with_structured_output(ConfidentOutput)
+analysis_llm = ChatOpenAI(model="gpt-5.4-mini", max_tokens=450).with_structured_output(
+    ThinkingAnalysis,
+    method="function_calling",
+)
+confident_llm = llm.with_structured_output(
+    ConfidentOutput,
+    method="function_calling",
+)
 
 # nodes
 def thinking_agent(state: PathFinderState) -> dict:
@@ -197,17 +202,29 @@ def confident_node(state: PathFinderState) -> dict:
 
     response = confident_llm.invoke(
         [SystemMessage(CONFIDENT_PROMPT.format(
-            thinking=thinking or ""
+            thinking=thinking or "",
         ))] + messages
     )
-    normalized_thinking = _apply_verification_caps(response.thinking, messages)
-    return {PROFILE_KEY: normalized_thinking.model_dump()}
+    capped_thinking = _apply_verification_caps(response.thinking, messages)
+    normalized = normalize_stage_profile(STAGE, capped_thinking)
+    return {PROFILE_KEY: normalized.model_dump()}
+
+
+def reopen_invalidator_node(state: PathFinderState) -> dict:
+    thinking = get_thinking_profile(state)
+    if thinking is None:
+        return {}
+    reopened = apply_reopen_invalidation(state, STAGE, thinking)
+    normalized = normalize_stage_profile(STAGE, reopened)
+    return {PROFILE_KEY: normalized.model_dump()}
 
 # graph
 builder = StateGraph(PathFinderState)
 builder.add_node("thinking_agent", thinking_agent)
 builder.add_node("confident", confident_node)
+builder.add_node("reopen_invalidator", reopen_invalidator_node)
 builder.add_edge(START, "confident")
-builder.add_edge("confident", "thinking_agent")
+builder.add_edge("confident", "reopen_invalidator")
+builder.add_edge("reopen_invalidator", "thinking_agent")
 builder.add_edge("thinking_agent", END)
 thinking_graph = builder.compile()

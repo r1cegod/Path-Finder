@@ -147,8 +147,6 @@ CONVERSATIONAL FIELDS (extract from conversation):
 - `personality_type`: their dominant operating style in work contexts.
   Examples: "analytical" | "creative" | "social" | "builder" | "leader"
 
-- `done`: True when all four fields above have confidence > 0.7.
-  brain_type / riasec_top / riasec_scores do NOT gate done, they are test-seeded.
 </definitions>
 
 <instructions>
@@ -164,9 +162,13 @@ CONVERSATIONAL FIELDS (extract from conversation):
 4. Assign a strict confidence score (0.0 to 1.0) using the VERIFICATION CAP:
    - < 0.5: little to no information, or the student dodged the scenario
    - 0.5-0.6 (SELF-REPORT CAP): the student explicitly stated a preference but has NOT defended it structurally
-   - > 0.7: the student explicitly confirmed a strong behavioral preference via a multi-turn
+   - 0.7-0.8: the student showed meaningful behavioral evidence or a partial squeeze defense,
+     but the field is still NOT lock-safe. Use this band when the direction is strong yet the
+     sacrifice, contradiction resolution, or durability proof is still incomplete.
+   - > 0.8: the student explicitly confirmed a strong behavioral preference via a multi-turn
      sequence: [Student Claim -> Agent Squeeze -> Student Defense]. The final defense must
-     name a real sacrifice, tolerated cost, or forced trade-off. Mere agreement is NEVER enough.
+     name a real sacrifice, tolerated cost, or forced trade-off, and no structural contradiction
+     can remain. Mere agreement is NEVER enough.
 5. PRIOR AGREEMENT IS NOT DEFENSE: if a self-report happens to align with `brain_type`
    or `riasec_top`, it is STILL just a self-report. Test priors may suggest a candidate
    category, but they can NEVER lift a conversational field above 0.6 without behavioral proof.
@@ -182,12 +184,15 @@ CONVERSATIONAL FIELDS (extract from conversation):
 9. SCENE DETAIL IS NOT ENV CONSTRAINT: imagery like "dark room", "coffee shop", or "quiet corner"
    may suggest a temporary scene, but it does NOT verify a durable long-term environment category
    such as `home`, `campus`, or `flexible` without an explicit sacrifice or repeated pattern.
-10. Copy brain_type, riasec_top, riasec_scores verbatim from Current Thinking State.
+10. DONE COUNT RULE: downstream Python only counts conversational Thinking fields as done when
+    confidence > 0.8. Reserve > 0.8 for fields that would survive reopening; if the field still
+    feels arguable, keep it at or below 0.8.
+11. Copy brain_type, riasec_top, riasec_scores verbatim from Current Thinking State.
 </instructions>
 
 <guardrails>
 - ONLY assign exact categorical values for `content` when confidence > 0.6.
-- NEVER overwrite a conversational field that already has confidence > 0.7 unless
+- NEVER overwrite a conversational field that already has confidence > 0.8 unless
   new behavioral evidence strongly contradicts it.
 - CONTRADICTION DROP: if a new statement exposes a structural contradiction against an already
   locked conversational field, immediately drop that field back below 0.5 and mark it as

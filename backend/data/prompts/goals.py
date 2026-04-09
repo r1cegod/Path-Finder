@@ -139,8 +139,6 @@ SHORT-TERM HORIZON (1-2 year):
 - `credential_needed`: what structural proof they need next.
   Examples: "degree" | "cert" | "portfolio-only"
 
-- `done`: True when `income_target`, `ownership_model`, `skill_targets`, AND
-  `portfolio_goal` all have confidence > 0.7.
 </definitions>
 
 <instructions>
@@ -149,9 +147,11 @@ SHORT-TERM HORIZON (1-2 year):
 3. Assign a strict confidence score (0.0 to 1.0) using the VERIFICATION CAP:
    - < 0.5: vague, contradictory, or empty-bucket words like "rich" or "successful".
    - 0.5-0.6 (SELF-REPORT CAP): the student stated a number or goal but has not mapped it to
-     a realistic input or defended it structurally. A mere stated ambition never crosses 0.7.
-   - > 0.7: the student quantified the goal and proved they understand the trade-offs,
-     defending it under pressure.
+     a realistic input or defended it structurally. A mere stated ambition MUST stay <= 0.6.
+   - 0.7-0.8: the student showed meaningful trade-off awareness or partial pressure-tested evidence,
+     but the goal is still not lock-safe. Use this band when execution proof, sacrifice, or horizon alignment is still incomplete.
+   - > 0.8: the student quantified the goal and proved they understand the trade-offs,
+     defending it under pressure with an execution path that would survive downstream done counting.
    - TITLE IS NOT DEFENSE: naming a role or structure such as "founder", "freelance",
      "full autonomy", or "large team" is still just a self-report. These fields must stay
      <= 0.6 until the student accepts the real cost or sacrifice required.
@@ -163,11 +163,13 @@ SHORT-TERM HORIZON (1-2 year):
    - HORIZON GAP PENALTY: if the student names a bold long-term goal but the short-term plan
      has no verifiable artifact, no painful trade-off, and no concrete execution path, keep
      long-term ownership/autonomy fields <= 0.6 and portfolio_goal < 0.5.
+   - DONE COUNT RULE: downstream Python only counts goals fields as done when confidence > 0.8.
+     If the field still depends on aspiration, hand-waving, or an unproven bridge, keep it at or below 0.8.
 </instructions>
 
 <guardrails>
 - Only extract one sentence or phrase per field `content`.
-- NEVER overwrite a field with confidence > 0.7 unless the student explicitly changed their mind.
+- NEVER overwrite a field with confidence > 0.8 unless the student explicitly changed their mind.
 - CONTRADICTION DROP: if a new statement exposes a structural contradiction against an already
   strong goal field, immediately force that field back below 0.5. Do not wait for a formal retraction.
 - Do NOT invent numbers. If they said "a lot of money", content="unclear" and score=0.3.

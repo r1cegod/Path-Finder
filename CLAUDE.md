@@ -29,7 +29,7 @@ The vault holds: who the user is, what is active right now, what is already deci
 | `docs (archived)/` | Old docs — vault holds canonical docs, not this folder |
 | `logs/` | Repo-local mirrors and durable logs |
 
-`logs/DEV_LOG.md` is the one mirrored exception: the canonical source is `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\DEV_LOG.md`, but every new dev-log entry must be written to both files.
+`logs/DEV_LOG.md` is the mirrored navigation file for the project dev log. The canonical index lives at `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\DEV_LOG.md`, and the actual mirrored daily notes live under `logs/dev/days/` plus `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\dev-log/days/`. Every new durable dev-log update must update the same day file in both places, then rebuild the index.
 
 ---
 

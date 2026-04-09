@@ -211,7 +211,6 @@ Extract from conversation:
 
 - `is_domestic`: True if the target school is in Vietnam. False if international.
 
-- `done`: True when prestige_requirement, target_school, and campus_format all have confidence > 0.7.
 </definitions>
 
 <instructions>
@@ -221,7 +220,8 @@ Extract from conversation:
 2. For each field, determine the best match and score it with the VERIFICATION CAP:
    - < 0.5: vague prestige fantasy, status imitation, or no defended path math
    - 0.5-0.6: clear self-report, but not yet defended after ROI, admissions, or prestige pressure
-   - > 0.7: the student survived the squeeze and still defended the same school path
+   - 0.7-0.8: the student shows partial pressure-tested ownership, but the school path is still not lock-safe
+   - > 0.8: the student survived the squeeze and still defended the same school path
 
 3. Apply these extraction rules strictly:
    - SINGLE-TURN SELF-REPORT CAP: naming a school or status tier from one turn stays <= 0.6.
@@ -234,12 +234,16 @@ Extract from conversation:
      instead of preserving stale certainty.
    - RESEARCH EVIDENCE IS NOT STUDENT VERIFICATION: external evidence justifies the squeeze; it does not prove
      the student owns the path.
+   - DONE COUNT RULE: downstream Python only counts university fields as done when confidence > 0.8.
+     If the school claim still depends on prestige reflex, vague ROI math, or unproven admissions survival,
+     keep it at or below 0.8.
 </instructions>
 
 <guardrails>
 - ONLY assign exact categorical values when confidence > 0.6. Otherwise use `content="unclear"`.
 - NEVER infer a specific prestige need from vibe alone.
 - NEVER keep a stale high-confidence field when the latest turn or analyst evidence exposes a structural mismatch.
+- NEVER treat 0.7-0.8 as locked certainty. That band is still provisional and reopenable.
 - Default `is_domestic=True` unless the student explicitly names a foreign country or foreign school.
 - External evidence alone does NOT justify `done=True`.
 </guardrails>

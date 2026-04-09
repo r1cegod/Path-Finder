@@ -32,6 +32,7 @@ def serialize_state(result: dict) -> dict:
     """Map PathFinderState → frontend appState shape."""
     stage = result.get("stage") or {}
     current_stage = stage.get("current_stage", "thinking") if isinstance(stage, dict) else "thinking"
+    forced_stage = stage.get("forced_stage", "") if isinstance(stage, dict) else ""
     stage_alias = {"university": "uni"}
 
     completed = []
@@ -42,6 +43,7 @@ def serialize_state(result: dict) -> dict:
 
     return {
         "currentStage":      stage_alias.get(current_stage, current_stage),
+        "forcedStage":       stage_alias.get(forced_stage, forced_stage),
         "completedStages":   completed,
         "turn_count":        result.get("turn_count", 0),
         "thinking":          result.get("thinking"),

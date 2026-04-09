@@ -6,7 +6,7 @@ import TestTab from './tabs/TestTab';
 
 export default function Shell({ activeTab, setActiveTab, appState, sessionId, onStateUpdate }) {
   return (
-    <div className="flex-1 flex flex-col h-screen mr-[340px]">
+    <div className="flex min-h-0 flex-1 flex-col md:mr-[340px] md:h-dvh">
       {/* TOPBAR */}
       <div className="h-11 px-4 flex items-center justify-between border-b border-subtle bg-base flex-shrink-0">
         <div className="font-sans text-[13px] font-bold uppercase tracking-[0.2em] text-text-pri">
@@ -19,7 +19,7 @@ export default function Shell({ activeTab, setActiveTab, appState, sessionId, on
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* LEFT SIDEBAR */}
         <div className="w-16 bg-base border-r border-subtle flex flex-col items-center py-4 gap-6 flex-shrink-0">
           
@@ -46,8 +46,12 @@ export default function Shell({ activeTab, setActiveTab, appState, sessionId, on
         </div>
 
         {/* MAIN CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col">
-          <ProgressBar currentStage={appState.currentStage} completedStages={appState.completedStages} />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
+          <ProgressBar
+            currentStage={appState.currentStage}
+            forcedStage={appState.forcedStage}
+            completedStages={appState.completedStages}
+          />
           
           <div className="flex-1">
             {activeTab === 'profile' && <ProfileTab appState={appState} />}

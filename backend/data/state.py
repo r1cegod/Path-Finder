@@ -9,7 +9,7 @@ Orchestrator holds the full state. Agents get compressed handoffs.
 ─────────────────────────────────────────────────────────────
  FieldEntry
   └─► all profile fields              ← uniform {content, confidence} shape
- StageCheck                           ← routing + soft-rebound meta
+ StageCheck                           ← routing + anchor-stage meta
  MessageTag                           ← per-message output modifier
  UserTag                              ← persistent user constraint modifier
  StageReasoning                       ← per-stage running context summaries
@@ -55,8 +55,6 @@ class MessageTag(BaseModel):
     # "disengaged"    → short + meaningless, student checked out
     # "avoidance"     → engages but dodges a specific field
     # "compliance"    → answers immediately but answer is social/generic script
-    user_drill: bool = False       # True → answer needs more depth this turn
-    user_drill_reason: str = ""    # WHY depth needed — injected into USER_DRILL_BLOCK
     response_tone: str = "socratic"
     # "socratic" → Socratic question drill
     # "firm"     → troll boundary enforcement
@@ -65,7 +63,8 @@ class MessageTag(BaseModel):
 
 class UserTag(BaseModel):
     # ─ Persistent user modifier ────────────────────────────
-    # Orchestrator writes ALL fields EVERY turn (reasoning lock).
+    # High-level orchestrator parser writes the bool signal fields.
+    # Sub-orchestrator maintenance refreshes the reasoning/text fields selectively.
     # bool = True  → concern detected, reasoning string injected into output block
     # bool = False → reasoning ignored, block not injected
     model_config = ConfigDict(extra="forbid")
@@ -241,12 +240,13 @@ class UniResearch(BaseModel):
 class StageCheck(BaseModel):
     # ─ Routing metadata (LLM classifies, Python reads) ───
     stage_related: list[str] = []
-    rebound: bool = False
     current_stage: str = "thinking"
+    anchor_stage: str = "thinking"
+    anchor_mode: str = "normal"
+    requested_anchor_stage: str = ""
     contradict: bool = False
     contradict_target: list[str] = []
-    forced_stage: str = ""
-    # contradict_count + rebound_count → moved to top-level state (Python-only)
+    # contradict_count → moved to top-level state (Python-only)
 
 # ═══════════════════════════════════════════════════════════
 #  LANGGRAPH STATE
@@ -263,6 +263,13 @@ class PathFinderState(TypedDict):
     # Agents read THEIR OWN slot here — not the raw global message history.
 
     summary: str
+    # Legacy conversation summary lane. No longer maintained by orchestrator.
+    # Keep until other graph consumers are migrated.
+
+    routing_memory: Annotated[list, add_messages]
+    # Sub-orchestrator long-log message lane. Mirrors raw conversation turns.
+    # On overflow, append path drops the oldest 3/4 of the lane and keeps appending.
+    # Summarizer / memory compression for this lane is still pending.
 
     bypass_stage: bool
     # Set by orchestrator input_parser. True → graph skips stage agents, routes to compiler directly.
@@ -278,7 +285,7 @@ class PathFinderState(TypedDict):
 
     # ─── LAYER 2: EXTRACTED PROFILE ────────────────────────
     stage: StageCheck
-    # Routing + soft-rebound metadata. Set by Orchestrator Tagger each turn.
+    # Routing metadata. current_stage is funnel logic; anchor_stage owns the live turn.
 
     thinking: ThinkingProfile | None
     # Stage 0. How user learns + operates. Foundation all other agents build on
@@ -314,12 +321,13 @@ class PathFinderState(TypedDict):
 
     path_debate_ready: bool
     # Python-computed by stage_manager each turn.
-    # True when all 6 profiles are done and no blocking user constraints gate B2.
+    # True when all 6 profiles are done, no blocking user constraints gate B2,
+    # and the orchestrator routed this turn to bypass/output instead of more drilling.
     # Output compiler reads this and switches to Case B2.
     # Never set by LLM. LLM CANNOT see this field.
 
     stage_transitioned: bool
-    # True for exactly ONE turn after current_stage changes (auto-advance or forced accept).
+    # True for exactly ONE turn after anchor_stage changes.
     # Written by stage_manager. Compiler injects STAGE_INTRO_BLOCK when True.
     # Never set by LLM.
 
@@ -332,7 +340,8 @@ class PathFinderState(TypedDict):
     # Per-turn output modifier. Set by Orchestrator Tagger. Resets each turn.
 
     user_tag: UserTag | None
-    # Persistent output modifier. Set once, updated as context grows.
+    # Persistent output modifier. Bool fields refresh in input_parser;
+    # reasoning/text fields refresh in sub-orchestrator maintenance.
     
     troll_warnings: int
     # 0–3. Escalation path triggers at 3.
@@ -376,22 +385,15 @@ class PathFinderState(TypedDict):
     # Managed by stage_manager each turn:
     #   contradict=True  → count + 1 | False → max(0, count - 1)
     # >= 3 → escalation_pending = True
-    rebound_count: int
-    # Managed by stage_manager each turn:
-    #   rebound=True  → count + 1 | False → max(0, count - 1)
-    # >= 3 → escalation_pending = True
-
     verdict: dict | None
     # Final cross-agent verdict. {"purpose": "APPROVE", "job": "REJECT: ...", ...}
-
-    limit_hit: bool
 
     # ─── LAYER 4: SILENT MONITORING ─────────────────────────
     turn_count: int
     # Incremented each turn by orchestrator. Used for 10-turn window checks.
     trigger_window: dict
     # Tracks trigger count per counter in the current 10-turn window.
-    # Shape: {"contradict": int, "rebound": int, "compliance": int,
+    # Shape: {"contradict": int, "compliance": int,
     #         "disengagement": int, "troll": int, "avoidance": int, "vague": int}
     # Every 10 turns (turn_count % 10 == 0 and turn_count > 0):
     #   if any counter >= 5 (50%):
@@ -401,17 +403,19 @@ class PathFinderState(TypedDict):
 
 DEFAULT_STAGE = {
     "stage_related": [],
-    "rebound": False,
     "current_stage": "thinking",
+    "anchor_stage": "thinking",
+    "anchor_mode": "normal",
+    "requested_anchor_stage": "",
     "contradict": False,
     "contradict_target": [],
-    "forced_stage": "",
 }
 
 DEFAULT_STATE: PathFinderState = {
     "messages": [],
     "stage_reasoning": StageReasoning(),
     "summary": "",
+    "routing_memory": [],
     "bypass_stage": False,
     "purpose_message": [],
     "goals_message": [],
@@ -442,12 +446,10 @@ DEFAULT_STATE: PathFinderState = {
     "avoidance_turns": 0,
     "vague_turns": 0,
     "contradict_count": 0,
-    "rebound_count": 0,
     "verdict": None,
-    "limit_hit": False,
     "turn_count": 0,
     "trigger_window": {
-        "contradict": 0, "rebound": 0, "compliance": 0,
+        "contradict": 0, "compliance": 0,
         "disengagement": 0, "troll": 0, "avoidance": 0, "vague": 0,
     },
 }

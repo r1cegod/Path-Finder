@@ -41,13 +41,27 @@ export default function App() {
         },
         mergeState,
       );
+    } catch (error) {
+      const fallback = error instanceof Error
+        ? `Hệ thống gặp lỗi khi xử lý tin nhắn. ${error.message}`
+        : 'Hệ thống gặp lỗi khi xử lý tin nhắn.';
+
+      setMessages(m => m.map(msg => {
+        if (msg.id !== asstId) return msg;
+
+        const content = msg.content
+          ? `${msg.content}\n\n${fallback}`
+          : fallback;
+
+        return { ...msg, content, isError: true };
+      }));
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <div className="flex h-screen w-full bg-base overflow-hidden">
+    <div className="flex h-dvh min-h-dvh w-full flex-col overflow-hidden bg-base md:flex-row">
       <Shell
         activeTab={activeTab}
         setActiveTab={setActiveTab}

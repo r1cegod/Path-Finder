@@ -198,8 +198,6 @@ Extract from conversation:
 - `autonomy_level`: the management structure they operate within.
   Examples: "fully independent" | "loosely managed" | "strictly directed"
 
-- `done`: True when role_category, company_stage, day_to_day, AND autonomy_level
-  all have confidence > 0.7.
 </definitions>
 
 <instructions>
@@ -208,7 +206,8 @@ Extract from conversation:
 2. For each field, determine the best match and score it with the VERIFICATION CAP:
    - < 0.5: title glamour, vague fantasy, contradiction, or no demonstrated understanding of the grind
    - 0.5-0.6: clear self-report, but not yet defended after market-data or prior-stage pressure
-   - > 0.7: the student survived the squeeze, accepted the trade-off, and still chose the same path
+   - 0.7-0.8: the student shows partial pressure-tested ownership, but the path is still not lock-safe
+   - > 0.8: the student survived the squeeze, accepted the trade-off, and still chose the same path
 
 3. Apply these extraction rules strictly:
    - SINGLE-TURN SELF-REPORT CAP: a role, company type, freelance claim, or autonomy fantasy from one turn stays <= 0.6.
@@ -217,12 +216,15 @@ Extract from conversation:
    - AUTONOMY DEPENDS ON GRIND: `autonomy_level` and `company_stage` cannot outrun `day_to_day`. If the grind is unverified, these fields stay <= 0.6.
    - CONTRADICTION DROP: if the latest turn logically crashes a prior locked field, lower it back below 0.5 instead of preserving stale certainty.
    - RESEARCH EVIDENCE IS NOT STUDENT VERIFICATION: web evidence justifies the squeeze; it does not prove the student owns the path.
+   - DONE COUNT RULE: downstream Python only counts job fields as done when confidence > 0.8.
+     If the claim still depends on title glamour, autonomy fantasy, or an unproven grind bridge, keep it at or below 0.8.
 </instructions>
 
 <guardrails>
 - ONLY assign exact categorical values when confidence > 0.6. Otherwise use `content="unclear"`.
 - NEVER infer a specific job structure from vibe alone.
 - NEVER keep a stale high-confidence field when the latest turn or analyst evidence exposes a structural mismatch.
+- NEVER treat 0.7-0.8 as locked certainty. That band is still provisional and reopenable.
 - `day_to_day` must describe the real grind, not the student's fantasy framing.
 - External evidence alone does NOT justify `done=True`.
 </guardrails>

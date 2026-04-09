@@ -178,12 +178,14 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
   const [miAnswers, setMiAnswers] = useState({});
   const [riasecAnswers, setRiasecAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   // Derived from real state — survives tab switches
   const miSubmitted = (appState?.thinking?.brain_type?.length ?? 0) > 0;
   const riasecSubmitted = (appState?.thinking?.riasec_top?.length ?? 0) > 0;
 
   const handleMiAnswer = (id, value) => {
+    setSubmitError('');
     setMiAnswers(prev => ({ ...prev, [id]: value }));
   };
 
@@ -195,15 +197,23 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
     });
     const brain_type = Object.keys(scores).filter(section => scores[section] >= 80);
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       await submitTest(sessionId, { brain_type }, onStateUpdate);
       setCurrentView('cards');
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? `Không thể nộp bài kiểm tra. ${error.message}`
+          : 'Không thể nộp bài kiểm tra.'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleRiasecAnswer = (index, value) => {
+    setSubmitError('');
     setRiasecAnswers(prev => ({ ...prev, [index]: value }));
   };
 
@@ -220,9 +230,16 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
     areaScores.sort((a, b) => b.score - a.score);
     const riasec_top = areaScores.slice(0, 2).map(a => a.area);
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       await submitTest(sessionId, { riasec_top }, onStateUpdate);
       setCurrentView('cards');
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? `Không thể nộp bài kiểm tra. ${error.message}`
+          : 'Không thể nộp bài kiểm tra.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -230,6 +247,12 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
 
   return (
     <div className={`flex-1 px-6 py-4 ${currentView === 'cards' ? 'overflow-hidden' : 'overflow-y-auto [&::-webkit-scrollbar]:hidden'} `} style={{ scrollbarWidth: 'none' }}>
+      {submitError && (
+        <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-accent-red/40 bg-accent-red/10 px-4 py-3 text-sm text-accent-red">
+          {submitError}
+        </div>
+      )}
+
       {currentView === 'cards' && (
         <div className="max-w-4xl mx-auto space-y-6 pb-8">
           {/* Card 1: Personality Assessment */}

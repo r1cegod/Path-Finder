@@ -26,6 +26,7 @@ Live documentation now lives in the PathFinder vault workspace:
 https://github.com/r1cegod/ADUC-obsidian-vault
 
 The repo `docs/` folder is legacy archive material and should not be treated as canonical.
+The canonical Python-function-check workflow now lives in the PathFinder vault evaluation docs, not in this repo tree.
 
 ### Learning history:
 - Raw python bot
@@ -40,7 +41,7 @@ Building from the ground up — Bottom-Up Law. Each node verified in isolation b
 - [x] Master topology designed (Orchestrator Ascended pattern)
 - [x] State schema locked (4 chronological layers, 42 fields, full writer/reader contracts)
 - [x] Gitignore shielded
-- [x] Input orchestrator complete — classify, rebound detection, contradict detection, 6 decay counters, 10-turn window
+- [x] Input orchestrator complete — classify, contradict detection, anchor-stage requests, 6 decay counters, 10-turn window
 - [x] Stage agent architecture locked — analyst pattern (writes to `stage_reasoning`; output compiler is sole response generator)
 - [x] Tier 0: Thinking Agent (MI + RIASEC seeding → behavioral inference)
 - [x] Tier 1: Purpose Agent (Socratic drilling, compliance detection)
@@ -77,12 +78,15 @@ Hell naw, define "vibe code"? Vibe coded mark only apply for products created wi
 Applying the SEAM method. Bottom-Up Law — build each node independently, verify in isolation, wire last. Every architectural decision has a rejected alternative documented. See `ARCHITECTURE.md` for the full ADR record.
 
 **What's the hardest part?**
-Not the models. State management and edge case routing — troll detection, contradictions, stage skips, rebound detection — all must feel like happy cases, not errors. The LLM classifies; Python counts, routes, and escalates. That boundary is where most of the design work lives.
+Not the models. State management and edge case routing — troll detection, contradictions, stage skips, and anchor-stage detours — all must feel like happy cases, not errors. The LLM classifies; Python counts, routes, and escalates. That boundary is where most of the design work lives.
 
 **Drop the settup**'
-The four horse men of development "ME"-Learning (literally), "Claude code"-Reasoning (planning and frontend), "Codex"-Execution (code write, review) and "Gemini-Antigravity"-Evaluate (prompt audit)
+The four horse men of development "ME"-Learning and Architecting (literally), "Claude code"-Reasoning (fucking useless with this kind of limit), "Codex"-Execution (code write, review, prompt audit) and "Gemini-Antigravity-Google AI studio"- One hit wonder (gives the cool ide and frontend build)
 
 ### Logs:
 See https://github.com/r1cegod/ADUC-obsidian-vault
+
+### NOTE:
+PLEASE don't go crazy on pathfinder or share it to other people, I only have 250k token on gpt 5.4 and 2.5M on gpt 5.4 mini DAILY. It can NOT handle over 100 message a day, over the limit and my wallet vaporizes.
 
 *Built by Anh Duc — solo, self-taught, powered with claude, codex and gemini*

@@ -52,27 +52,38 @@ Desktop.ini
 
 # Testing & Coverage
 .coverage
+.coverage.*
 .tox/
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 .cache/
 threads/
 Trace/
 logs/*
 !logs/DEV_LOG.md
+!logs/README.md
+!logs/dev/
+logs/dev/*
+!logs/dev/HOW_TO_WRITE.md
+!logs/dev/days/
+logs/dev/days/*
+!logs/dev/days/*.md
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
 GEMINI.md
 test.py
-.claude
+.claude/
 .pyre_configuration
 .mcp.json
-zip
+zip/
 
 # Internal tooling — not for public repo
 DEV_LOG_SYSTEM_PROMPT.md
 architect_audit.txt
 architecture_doc_howto.md
+scripts/
+python_function_check/

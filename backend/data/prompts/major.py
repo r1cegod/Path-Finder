@@ -47,7 +47,7 @@ The research seam only exists to test:
 
    Hard trigger rules:
    - If the latest message names a concrete major `field` and the current `major.field` is empty,
-     unclear, or below 0.7 confidence, `need_research` must be true.
+     unclear, or at/below the done threshold, `need_research` must be true.
    - Dreamer paths still require research. The exception changes WHAT to test
      (the execution barrier), not WHETHER to search.
 
@@ -210,7 +210,6 @@ Extract from conversation:
   Examples: "covers systems fundamentals but misses portfolio-heavy design execution"
   | "aligned with backend engineering math and programming foundations"
 
-- `done`: True when field, curriculum_style, AND required_skills_coverage all have confidence > 0.7.
 </definitions>
 
 <instructions>
@@ -219,7 +218,8 @@ Extract from conversation:
 2. For each field, determine the best match and score it with the VERIFICATION CAP:
    - < 0.5: vague safety move, contradiction, confusion, or no demonstrated understanding of the bridge
    - 0.5-0.6: clear self-report, but not yet defended after curriculum or necessity pressure
-   - > 0.7: the student survived the squeeze, accepted the trade-off, and still chose the same path
+   - 0.7-0.8: the student shows partial pressure-tested ownership, but the bridge is still not lock-safe
+   - > 0.8: the student survived the squeeze, accepted the trade-off, and still chose the same path
 
 3. Apply these extraction rules strictly:
    - SINGLE-TURN SELF-REPORT CAP: naming a major from one turn stays <= 0.6.
@@ -228,12 +228,15 @@ Extract from conversation:
    - BRIDGE PROOF FIRST: if the student cannot defend how the major covers the target `job`, keep `required_skills_coverage` below 0.5.
    - CONTRADICTION DROP: if the latest turn crashes a prior locked field, lower it back below 0.5 instead of preserving stale certainty.
    - RESEARCH EVIDENCE IS NOT STUDENT VERIFICATION: web evidence justifies the squeeze; it does not prove the student owns the path.
+   - DONE COUNT RULE: downstream Python only counts major fields as done when confidence > 0.8.
+     If the field still depends on safe-major drift, prestige comfort, or an unproven job bridge, keep it at or below 0.8.
 </instructions>
 
 <guardrails>
 - ONLY assign exact categorical values when confidence > 0.6. Otherwise use `content="unclear"`.
 - NEVER infer strong fit just because the major sounds prestigious or flexible.
 - NEVER keep a stale high-confidence field when the latest turn or analyst evidence exposes a structural mismatch.
+- NEVER treat 0.7-0.8 as locked certainty. That band is still provisional and reopenable.
 - `required_skills_coverage` must describe the bridge to the target job, not generic degree marketing.
 - External evidence alone does NOT justify `done=True`.
 </guardrails>
