@@ -5,6 +5,12 @@ import StageTab from './tabs/StageTab';
 import TestTab from './tabs/TestTab';
 
 export default function Shell({ activeTab, setActiveTab, appState, sessionId, onStateUpdate }) {
+  const tabs = [
+    { key: 'profile', label: 'Profile', icon: User },
+    { key: 'stage', label: 'Stage', icon: LayoutList },
+    { key: 'test', label: 'Test', icon: FlaskConical },
+  ];
+
   return (
     <div className="flex min-h-0 flex-1 flex-col md:mr-[340px] md:h-dvh">
       {/* TOPBAR */}
@@ -22,27 +28,18 @@ export default function Shell({ activeTab, setActiveTab, appState, sessionId, on
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* LEFT SIDEBAR */}
         <div className="w-16 bg-base border-r border-subtle flex flex-col items-center py-4 gap-6 flex-shrink-0">
-          
-          <div 
-            onClick={() => setActiveTab('profile')}
-            className={`p-2 rounded-lg cursor-pointer ${activeTab === 'profile' ? 'bg-elevated text-text-pri' : 'text-text-muted hover:text-text-sec'}`}
-          >
-            <User className="w-4 h-4" />
-          </div>
-          
-          <div 
-            onClick={() => setActiveTab('stage')}
-            className={`p-2 rounded-lg cursor-pointer ${activeTab === 'stage' ? 'bg-elevated text-text-pri' : 'text-text-muted hover:text-text-sec'}`}
-          >
-            <LayoutList className="w-4 h-4" />
-          </div>
-          
-          <div 
-            onClick={() => setActiveTab('test')}
-            className={`p-2 rounded-lg cursor-pointer ${activeTab === 'test' ? 'bg-elevated text-text-pri' : 'text-text-muted hover:text-text-sec'}`}
-          >
-            <FlaskConical className="w-4 h-4" />
-          </div>
+          {tabs.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              aria-label={label}
+              title={label}
+              onClick={() => setActiveTab(key)}
+              className={`p-2 rounded-lg ${activeTab === key ? 'bg-elevated text-text-pri' : 'text-text-muted hover:text-text-sec'}`}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
         </div>
 
         {/* MAIN CONTENT */}

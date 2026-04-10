@@ -22,17 +22,17 @@ def total_message_tokens(messages: list) -> int:
     return sum(approximate_message_tokens(message) for message in messages)
 
 
-def append_with_fractional_prune(
-    existing_messages: list,
-    new_message,
+def build_fractional_prune_plan(
+    messages: list,
     token_budget: int,
     drop_fraction: float = ROUTING_MEMORY_DROP_FRACTION,
-):
-    existing_messages = existing_messages or []
-    candidate = [*existing_messages, new_message]
-    if token_budget <= 0 or total_message_tokens(candidate) <= token_budget:
-        return [new_message]
+) -> tuple[bool, list, list, list]:
+    messages = messages or []
+    if token_budget <= 0 or total_message_tokens(messages) <= token_budget:
+        return (False, [], messages, [])
 
-    drop_count = max(1, int(len(existing_messages) * drop_fraction))
-    removals = [RemoveMessage(id=message.id) for message in existing_messages[:drop_count]]
-    return [*removals, new_message]
+    drop_count = max(1, int(len(messages) * drop_fraction))
+    retired = messages[:drop_count]
+    kept = messages[drop_count:]
+    removals = [RemoveMessage(id=message.id) for message in retired]
+    return (True, retired, kept, removals)

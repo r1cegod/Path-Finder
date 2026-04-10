@@ -8,7 +8,7 @@ export default function MessageList({ messages, isLoading }) {
     if (containerRef.current) {
       containerRef.current.scrollTo({
         top: containerRef.current.scrollHeight,
-        behavior: 'smooth'
+        behavior: isLoading ? 'auto' : 'smooth'
       });
     }
   }, [messages, isLoading]);

@@ -106,6 +106,20 @@ class UserTag(BaseModel):
     vague_reasoning:            str = ""
 
 
+class UserTagSummaries(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    parental_pressure: str = ""
+    burnout_risk: str = ""
+    urgency: str = ""
+    core_tension: str = ""
+    reality_gap: str = ""
+    self_authorship: str = ""
+    compliance: str = ""
+    disengagement: str = ""
+    avoidance: str = ""
+    vague: str = ""
+
+
 class StageReasoning(BaseModel):
     # ─ Per-stage running context summaries ─────────────────
     # Each stage agent writes its OWN slot. Orchestrator reads ALL slots.
@@ -342,6 +356,10 @@ class PathFinderState(TypedDict):
     user_tag: UserTag | None
     # Persistent output modifier. Bool fields refresh in input_parser;
     # reasoning/text fields refresh in sub-orchestrator maintenance.
+
+    user_tag_summaries: UserTagSummaries | None
+    # Per-field long-memory summaries for sub-orchestrator workers.
+    # Each summary_* worker owns one slot and refreshes it only when routing_memory is trimmed.
     
     troll_warnings: int
     # 0–3. Escalation path triggers at 3.
@@ -438,6 +456,7 @@ DEFAULT_STATE: PathFinderState = {
     "compiler_prompt": "",
     "message_tag": None,
     "user_tag": None,
+    "user_tag_summaries": None,
     "troll_warnings": 0,
     "escalation_pending": False,
     "escalation_reason": "",

@@ -6,13 +6,6 @@ import { AlertTriangle } from 'lucide-react';
 export default function ProfileTab({ appState }) {
   const { turn_count, purpose, thinking, job, goals, user_tag } = appState;
 
-  const renderSkeletonIfEmpty = (content, className) => {
-    if (content === null || content === undefined || content === '') {
-      return <SkeletonBlock className={className} />;
-    }
-    return content;
-  };
-
   return (
     <div className="flex flex-col gap-4">
       {/* HERO BLOCK */}

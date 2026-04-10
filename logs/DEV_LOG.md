@@ -3,8 +3,8 @@
 > Navigation only. One line per day. Open the linked day file for the actual note.
 > The daily file is the log. This index is the map.
 
+- 2026-04-10 | Routing-memory lane plus sub-orchestrator focus eval through Round 3 | [entry](./dev/days/2026-04-10.md)
 - 2026-04-09 | Confidence prompts aligned to `> 0.8`, replayed cleanly, and structured-output serializer warning debt paid | [entry](./dev/days/2026-04-09.md)
-- 2026-04-10 | Orchestrator routes through `routing_memory`, with a hard 5k raw-message cutoff on the sub-orchestrator lane | [entry](./dev/days/2026-04-10.md)
 - 2026-04-08 | Two-layer logs in repo and vault, with the dev log kept human-readable | [entry](./dev/days/2026-04-08.md)
 - 2026-04-07 | Mirror rules, shared retrieval, Stage 4 passes, pre-commit fixes, and workflow cleanup | [entry](./dev/days/2026-04-07.md)
 - 2026-04-06 | Vault docs become canonical and repo bootstrap points at the vault | [entry](./dev/days/2026-04-06.md)

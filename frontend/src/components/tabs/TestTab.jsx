@@ -190,6 +190,8 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
   };
 
   const handleMiSubmit = async () => {
+    if (isSubmitting || Object.keys(miAnswers).length < MI_QUESTIONS.length) return;
+
     const scores = {};
     MI_QUESTIONS.forEach(q => {
       if (!scores[q.section]) scores[q.section] = 0;
@@ -218,6 +220,8 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
   };
 
   const handleRiasecSubmit = async () => {
+    if (isSubmitting || Object.keys(riasecAnswers).length < RIASEC_QUESTIONS.length) return;
+
     const scores = {};
     RIASEC_QUESTIONS.forEach(q => {
       if (!scores[q.area]) scores[q.area] = 0;
@@ -256,9 +260,11 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
       {currentView === 'cards' && (
         <div className="max-w-4xl mx-auto space-y-6 pb-8">
           {/* Card 1: Personality Assessment */}
-          <div
-            className={`bg-[#111111] border border-[#1e1e1e] rounded-lg p-6 flex flex-col gap-6 transition-colors ${riasecSubmitted ? 'opacity-60 cursor-default' : 'hover:border-[#7C3AED]/50 cursor-pointer group'}`}
+          <button
+            type="button"
+            className={`w-full text-left bg-[#111111] border border-[#1e1e1e] rounded-lg p-6 flex flex-col gap-6 transition-colors ${riasecSubmitted ? 'opacity-60 cursor-default' : 'hover:border-[#7C3AED]/50 cursor-pointer group'}`}
             onClick={() => !riasecSubmitted && setCurrentView('personality-quiz')}
+            disabled={riasecSubmitted}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
@@ -287,12 +293,14 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
               <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">THỜI GIAN DỰ KIẾN</span>
               <span className="text-[10px] font-mono text-zinc-400">12P</span>
             </div>
-          </div>
+          </button>
 
           {/* Card 2: Brain & Learning Mode */}
-          <div
-            className={`bg-[#111111] border border-[#1e1e1e] rounded-lg p-6 flex flex-col gap-6 transition-colors ${miSubmitted ? 'opacity-60 cursor-default' : 'hover:border-[#7C3AED]/50 cursor-pointer group'}`}
+          <button
+            type="button"
+            className={`w-full text-left bg-[#111111] border border-[#1e1e1e] rounded-lg p-6 flex flex-col gap-6 transition-colors ${miSubmitted ? 'opacity-60 cursor-default' : 'hover:border-[#7C3AED]/50 cursor-pointer group'}`}
             onClick={() => !miSubmitted && setCurrentView('brain-quiz')}
+            disabled={miSubmitted}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
@@ -321,7 +329,7 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
               <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">THỜI GIAN DỰ KIẾN</span>
               <span className="text-[10px] font-mono text-zinc-400">08P</span>
             </div>
-          </div>
+          </button>
 
           {/* Decorative Element */}
           <div className="pt-8 flex flex-col items-center justify-center opacity-20 select-none pointer-events-none">
@@ -368,7 +376,8 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
               <div key={q.id} className="bg-[#111111] border border-[#1e1e1e] rounded-lg p-6">
                 <h3 className="font-sans text-[16px] font-medium text-white mb-5">{q.text}</h3>
                 <div className="flex flex-row gap-4">
-                  <button 
+                  <button
+                    type="button"
                     onClick={() => handleMiAnswer(q.id, 1)}
                     className={`rounded-full px-6 py-2 font-semibold text-sm transition-colors ${
                       isAgree 
@@ -378,7 +387,8 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
                   >
                     Đồng ý
                   </button>
-                  <button 
+                  <button
+                    type="button"
                     onClick={() => handleMiAnswer(q.id, 0)}
                     className={`rounded-full px-6 py-2 text-sm transition-all ${
                       isSkip
@@ -394,6 +404,7 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
           })}
           
           <button
+            type="button"
             onClick={handleMiSubmit}
             disabled={Object.keys(miAnswers).length < 90 || isSubmitting}
             className={`w-full bg-[#7C3AED] text-white rounded-lg py-3 font-semibold mt-8 transition-all ${
@@ -435,30 +446,40 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
                   <span className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider w-28 text-right">Ấn tượng tốt</span>
                   <div className="flex items-center justify-center gap-4 lg:gap-8 flex-1">
                     {/* 5 */}
-                    <div 
+                    <button
+                      type="button"
+                      aria-label={`${q.text} - 5`}
                       onClick={() => handleRiasecAnswer(q.index, 5)}
                       className={`likert-circle w-12 h-12 border-[#10B981] ${val === 5 ? 'bg-[#10B981] opacity-100' : ''}`}
-                    ></div>
+                    />
                     {/* 4 */}
-                    <div 
+                    <button
+                      type="button"
+                      aria-label={`${q.text} - 4`}
                       onClick={() => handleRiasecAnswer(q.index, 4)}
                       className={`likert-circle w-10 h-10 border-[#10B981]/60 ${val === 4 ? 'bg-[#10B981]/60 opacity-100' : ''}`}
-                    ></div>
+                    />
                     {/* 3 */}
-                    <div 
+                    <button
+                      type="button"
+                      aria-label={`${q.text} - 3`}
                       onClick={() => handleRiasecAnswer(q.index, 3)}
                       className={`likert-circle w-7 h-7 border-zinc-600 ${val === 3 ? 'bg-zinc-600 opacity-100' : ''}`}
-                    ></div>
+                    />
                     {/* 2 */}
-                    <div 
+                    <button
+                      type="button"
+                      aria-label={`${q.text} - 2`}
                       onClick={() => handleRiasecAnswer(q.index, 2)}
                       className={`likert-circle w-10 h-10 border-[#7C3AED]/60 ${val === 2 ? 'bg-[#7C3AED]/60 opacity-100' : ''}`}
-                    ></div>
+                    />
                     {/* 1 */}
-                    <div 
+                    <button
+                      type="button"
+                      aria-label={`${q.text} - 1`}
                       onClick={() => handleRiasecAnswer(q.index, 1)}
                       className={`likert-circle w-12 h-12 border-[#7C3AED] ${val === 1 ? 'bg-[#7C3AED] opacity-100' : ''}`}
-                    ></div>
+                    />
                   </div>
                   <span className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider w-28">Ấn tượng xấu</span>
                 </div>
@@ -467,6 +488,7 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
           })}
           
           <button
+            type="button"
             onClick={handleRiasecSubmit}
             disabled={Object.keys(riasecAnswers).length < 60 || isSubmitting}
             className={`w-full bg-[#7C3AED] text-white rounded-lg py-3 font-semibold mt-8 transition-all ${

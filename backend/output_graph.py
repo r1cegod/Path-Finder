@@ -8,7 +8,6 @@ import unicodedata
 from backend.data.state import PathFinderState, StageCheck
 from backend.data.prompts.output import build_compiler_prompt
 from backend.data.contracts.stages import is_stage_name, STAGE_TO_QUEUE_KEY
-from backend.message_window import append_with_fractional_prune, ROUTING_MEMORY_TOKEN_BUDGET
 
 #prep
 load_dotenv()
@@ -55,11 +54,7 @@ def output_compiler(state: PathFinderState) -> dict:
     ai_message = AIMessage(content=_sanitize_student_reply(content))
     updates = {
         "messages": [ai_message],
-        "routing_memory": append_with_fractional_prune(
-            state.get("routing_memory") or [],
-            ai_message,
-            ROUTING_MEMORY_TOKEN_BUDGET,
-        ),
+        "routing_memory": [ai_message],
     }
 
     stage = get_stage(state)

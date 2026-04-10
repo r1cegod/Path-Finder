@@ -13,7 +13,6 @@ from backend.job_graph import job_graph
 from backend.major_graph import major_graph
 from backend.uni_graph import uni_graph
 from backend.output_graph import context_compiler, output_compiler
-from backend.message_window import append_with_fractional_prune, ROUTING_MEMORY_TOKEN_BUDGET
 from backend.data.contracts.stages import (
     STAGE_INDEX,
     STAGE_ORDER,
@@ -171,11 +170,7 @@ def input_parser(state: PathFinderState):
     #tagger
     if len(state["messages"]) > 0:
         latest_msg = state["messages"][-1]
-        updates["routing_memory"] = append_with_fractional_prune(
-            state.get("routing_memory") or [],
-            latest_msg,
-            ROUTING_MEMORY_TOKEN_BUDGET,
-        )
+        updates["routing_memory"] = [latest_msg]
         for s in response.stage_related:
             if is_stage_name(s):
                 updates[STAGE_TO_QUEUE_KEY[s]] = [latest_msg]

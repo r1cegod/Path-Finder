@@ -10,6 +10,10 @@ Use this file for:
 
 Other docs may hold evaluation context or stage-specific findings, but they should point back here for the actual pipeline.
 
+Sub-orchestrator-only prompt and memory-maintenance audits now use a separate focused lane:
+- `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\sub_orchestrator_focus_eval_how_to_use.md`
+- `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\sub_orchestrator_evaluation.md`
+
 ---
 
 ## Purpose

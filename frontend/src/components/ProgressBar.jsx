@@ -1,6 +1,7 @@
 import React from 'react';
 
 export default function ProgressBar({ currentStage, forcedStage, completedStages }) {
+  const completed = completedStages ?? [];
   const stages = [
     { key: 'thinking', label: 'tư duy' },
     { key: 'purpose', label: 'mục đích' },
@@ -22,9 +23,11 @@ export default function ProgressBar({ currentStage, forcedStage, completedStages
       <div className="relative flex justify-between px-[5px]">
         <div className="absolute left-[37px] right-[37px] top-[10px] z-0 flex">
           {stages.slice(0, -1).map((_, index) => {
-            const leftDone = completedStages.includes(stages[index].key);
-            const rightDone = completedStages.includes(stages[index + 1].key);
-            const isLineLit = leftDone && rightDone;
+            const nextStage = stages[index + 1].key;
+            const leftDone = completed.includes(stages[index].key);
+            const rightDone = completed.includes(nextStage);
+            const rightActive = nextStage === currentStage || nextStage === forcedStage;
+            const isLineLit = leftDone && (rightDone || rightActive);
 
             return (
               <div key={stages[index + 1].key} className={`h-px flex-1 ${isLineLit ? 'bg-accent-purple' : 'bg-subtle'}`} />
@@ -33,7 +36,7 @@ export default function ProgressBar({ currentStage, forcedStage, completedStages
         </div>
 
         {stages.map((stage) => {
-          const isDone = completedStages.includes(stage.key);
+          const isDone = completed.includes(stage.key);
           const isCurrent = currentStage === stage.key;
           const isForced = forcedStage === stage.key;
           const isLit = isCurrent || isForced;

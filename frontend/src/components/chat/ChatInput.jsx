@@ -21,9 +21,10 @@ export default function ChatInput({ onSend, isLoading, locked }) {
   };
 
   const handleSend = () => {
-    if (value.trim() === '' || isLoading) return;
+    const nextValue = value.trim();
+    if (nextValue === '' || locked || isLoading) return;
 
-    onSend(value);
+    onSend(nextValue);
     setValue('');
 
     if (textareaRef.current) {
@@ -62,6 +63,7 @@ export default function ChatInput({ onSend, isLoading, locked }) {
           </div>
 
           <button
+            type="button"
             onClick={handleSend}
             disabled={locked || value.trim() === '' || isLoading}
             className={`flex h-8 w-8 items-center justify-center rounded-full ${

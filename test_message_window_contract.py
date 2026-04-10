@@ -2,35 +2,35 @@ import unittest
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
-from backend.message_window import append_with_fractional_prune
+from backend.message_window import build_fractional_prune_plan
 
 
 class MessageWindowContractTest(unittest.TestCase):
-    def test_append_without_overflow_only_appends_new_message(self):
+    def test_plan_without_overflow_keeps_full_window(self):
         existing = [HumanMessage(content="one"), AIMessage(content="two")]
-        new_message = HumanMessage(content="three")
 
-        patch = append_with_fractional_prune(existing, new_message, token_budget=1000)
+        over_limit, retired, kept, removals = build_fractional_prune_plan(existing, token_budget=1000)
 
-        self.assertEqual(len(patch), 1)
-        self.assertEqual(patch[0].content, "three")
+        self.assertFalse(over_limit)
+        self.assertEqual(retired, [])
+        self.assertEqual(kept, existing)
+        self.assertEqual(removals, [])
 
-    def test_append_with_overflow_drops_oldest_three_quarters(self):
+    def test_plan_with_overflow_drops_oldest_three_quarters(self):
         existing = [
             HumanMessage(content="x " * 80),
             AIMessage(content="y " * 80),
             HumanMessage(content="z " * 80),
             AIMessage(content="q " * 80),
         ]
-        new_message = HumanMessage(content="tail")
 
-        patch = append_with_fractional_prune(existing, new_message, token_budget=50)
+        over_limit, retired, kept, removals = build_fractional_prune_plan(existing, token_budget=50)
 
-        removals = [item for item in patch if isinstance(item, RemoveMessage)]
-        appended = [item for item in patch if not isinstance(item, RemoveMessage)]
-
+        self.assertTrue(over_limit)
+        self.assertEqual(len(retired), 3)
+        self.assertEqual(len(kept), 1)
         self.assertEqual(len(removals), 3)
-        self.assertEqual(appended[0].content, "tail")
+        self.assertTrue(all(isinstance(item, RemoveMessage) for item in removals))
 
 
 if __name__ == "__main__":
