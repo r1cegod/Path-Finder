@@ -34,6 +34,18 @@ The research seam only exists to test:
 - Dreamer-path execution barriers inside the Vietnamese ecosystem
 </scope>
 
+<goals_dependency>
+Goals is now a handoff layer. Treat short-term Goals as assumptions Major must test, not as final proof.
+
+Short-goal assumptions that belong to Major:
+- skill_targets -> curriculum and self-study bridge
+- portfolio_goal -> project/portfolio path and proof artifact
+- credential_needed -> degree/cert/portfolio necessity
+
+If Goals contains a concrete but unproven skill stack or portfolio plan, Major must dig out the correct
+qualification route instead of asking Goals-style planning questions again.
+</goals_dependency>
+
 <instructions>
 1. Read the latest Human Message and compare it against `thinking`, `purpose`, `goals`, `job`,
    and the current `major` profile.
@@ -44,6 +56,7 @@ The research seam only exists to test:
    - a new claim about curriculum style or practical-vs-theoretical fit
    - a claim that the degree is structurally necessary for the target job
    - a Dreamer-style outlier path that needs a Vietnam execution-barrier check
+   - a Goals handoff assumption about skills, portfolio, or credential necessity that has not been curriculum-tested yet
 
    Hard trigger rules:
    - If the latest message names a concrete major `field` and the current `major.field` is empty,
@@ -127,6 +140,17 @@ What each field captures:
 - required_skills_coverage: whether that vehicle really equips the target job path
 </scope>
 
+<goals_dependency>
+Goals is now a handoff layer. Treat `goals.short` as the hypothesis Major must validate.
+
+For this stage:
+- Skill targets are not a Major answer; convert them into curriculum coverage pressure.
+- Portfolio goals are not a Major answer; convert them into project, internship, and artifact pressure.
+- Credential assumptions are not a Major answer; test whether a degree is structurally necessary or merely socially safe.
+
+Do not send the student back to Goals when the missing proof is really qualification or curriculum reality.
+</goals_dependency>
+
 <instructions>
 1. Read the full context, especially `major_research`.
    If `major_research.research_complete` is true, use the evidence explicitly.
@@ -144,6 +168,8 @@ What each field captures:
      treated as unverified.
    - If the curriculum reality clashes with `thinking.learning_mode`, make that clash explicit.
    - If the student instantly complies with a safer pivot, treat that as weak ownership, not proof.
+   - If Goals already named concrete short-term skills or a portfolio artifact, do not ask whether they want it again.
+     Test which major, curriculum style, or credential path can actually support it.
 
 4. Design the next squeeze.
    - The probe must attack the strongest contradiction or missing proof.
@@ -212,14 +238,23 @@ Extract from conversation:
 
 </definitions>
 
+<goals_dependency>
+Read Goals as directional context even when it is not proof-grade.
+If the conversation reveals concrete skills, portfolio artifacts, project types, credential assumptions,
+or self-study constraints while discussing Goals, extract the academic bridge when this graph runs.
+</goals_dependency>
+
 <instructions>
 1. Read the full conversation history for the major claim. Treat major names and status language as hypotheses, not verified fit.
+   Current Major State is evidence. Preserve an existing concrete field above 0.8 unless the latest message directly contradicts it.
 
 2. For each field, determine the best match and score it with the VERIFICATION CAP:
    - < 0.5: vague safety move, contradiction, confusion, or no demonstrated understanding of the bridge
    - 0.5-0.6: clear self-report, but not yet defended after curriculum or necessity pressure
    - 0.7-0.8: the student shows partial pressure-tested ownership, but the bridge is still not lock-safe
-   - > 0.8: the student survived the squeeze, accepted the trade-off, and still chose the same path
+   - > 0.8: the student survived the squeeze, accepted the trade-off, and still chose the same path.
+     For Major, "survived the squeeze" can mean they named the academic vehicle, the curriculum style they need,
+     and the exact skill bridge to the Job/Goals path. Do not require university-specific research here.
 
 3. Apply these extraction rules strictly:
    - SINGLE-TURN SELF-REPORT CAP: naming a major from one turn stays <= 0.6.
@@ -230,6 +265,15 @@ Extract from conversation:
    - RESEARCH EVIDENCE IS NOT STUDENT VERIFICATION: web evidence justifies the squeeze; it does not prove the student owns the path.
    - DONE COUNT RULE: downstream Python only counts major fields as done when confidence > 0.8.
      If the field still depends on safe-major drift, prestige comfort, or an unproven job bridge, keep it at or below 0.8.
+   - GOALS-HANDOFF RULE: if Goals already contains a stable short-term direction, Major should award confidence
+     for concrete qualification evidence in the conversation, not penalize the field just because Goals did not prove the market path.
+   - TRACE MAJOR EVIDENCE:
+     If the student names Computer Science or a software/data path as the vehicle for AI agents, Python, SQL, and system design,
+     extract field strongly.
+     If they say they learn by building real projects, reading examples, then implementing, and that theory-only programs would fail,
+     extract curriculum_style strongly as project-heavy software/data execution.
+     If they connect the major to databases, search tools, graph-based agent components, Python, SQL, system design,
+     and paid product/client proof, extract required_skills_coverage strongly.
 </instructions>
 
 <guardrails>

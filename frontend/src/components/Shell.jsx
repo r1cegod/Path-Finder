@@ -1,14 +1,16 @@
-import { User, LayoutList, FlaskConical, Radio } from 'lucide-react';
+import { Bug, User, LayoutList, FlaskConical, Radio } from 'lucide-react';
 import ProgressBar from './ProgressBar';
 import ProfileTab from './tabs/ProfileTab';
 import StageTab from './tabs/StageTab';
 import TestTab from './tabs/TestTab';
+import DebugTab from './tabs/DebugTab';
 
 export default function Shell({ activeTab, setActiveTab, appState, sessionId, onStateUpdate }) {
   const tabs = [
     { key: 'profile', label: 'Profile', icon: User },
     { key: 'stage', label: 'Stage', icon: LayoutList },
     { key: 'test', label: 'Test', icon: FlaskConical },
+    ...(import.meta.env.DEV ? [{ key: 'debug', label: 'Debug', icon: Bug }] : []),
   ];
 
   return (
@@ -54,6 +56,7 @@ export default function Shell({ activeTab, setActiveTab, appState, sessionId, on
             {activeTab === 'profile' && <ProfileTab appState={appState} />}
             {activeTab === 'stage' && <StageTab appState={appState} />}
             {activeTab === 'test' && <TestTab sessionId={sessionId} onStateUpdate={onStateUpdate} appState={appState} />}
+            {activeTab === 'debug' && import.meta.env.DEV && <DebugTab sessionId={sessionId} />}
           </div>
         </div>
       </div>

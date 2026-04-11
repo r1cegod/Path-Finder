@@ -10,13 +10,15 @@ const getConfidenceColor = (val) => {
   return 'bg-[#EF4444]';
 };
 
-const StageCard = ({ title, status, fields, twoColumn }) => {
+const StageCard = ({ title, stageKey, status, fields, twoColumn }) => {
   const isComplete = status === 'complete';
   const isActive = status === 'active';
   const isPending = status === 'pending';
 
   return (
-    <div 
+    <div
+      data-stage-card={stageKey ?? title}
+      data-stage-status={status}
       className={`bg-surface border rounded-lg p-4 flex flex-col gap-3 ${
         isComplete ? 'border-subtle' : 
         isActive ? 'border-accent-purple/60 shadow-[0_0_0_1px_rgba(124,58,237,0.2)]' : 
@@ -118,6 +120,11 @@ const StageCard = ({ title, status, fields, twoColumn }) => {
 
 export default function StageTab({ appState }) {
   const getStatus = (stageName) => {
+    if (appState.forcedStage) {
+      if (appState.forcedStage === stageName) return 'active';
+      if (appState.completedStages?.includes(stageName)) return 'complete';
+      return 'pending';
+    }
     if (appState.completedStages?.includes(stageName)) return 'complete';
     if (appState.currentStage === stageName) return 'active';
     return 'pending';

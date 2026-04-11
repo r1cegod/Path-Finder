@@ -13,6 +13,7 @@ from backend.job_graph import job_graph
 from backend.major_graph import major_graph
 from backend.uni_graph import uni_graph
 from backend.output_graph import context_compiler, output_compiler
+from backend.message_window import MESSAGES_TOKEN_BUDGET, build_fractional_prune_plan
 from backend.data.contracts.stages import (
     STAGE_INDEX,
     STAGE_ORDER,
@@ -123,6 +124,12 @@ def get_stage(state: PathFinderState) -> StageCheck:
 
 #nodes
 def input_parser(state: PathFinderState):
+    messages = state.get("messages") or []
+    _, _, parser_messages, message_removals = build_fractional_prune_plan(
+        messages,
+        MESSAGES_TOKEN_BUDGET,
+        preserve_tail=1,
+    )
     stage_got = get_stage(state)
     active_anchor_stage = stage_got.anchor_stage or stage_got.current_stage
     user_tag = state.get("user_tag") or {}
@@ -141,7 +148,7 @@ def input_parser(state: PathFinderState):
             current_stage = stage_got.current_stage,
             anchor_stage = active_anchor_stage,
             prev_message_type = prev_message_type,
-        ))] + (state.get("messages") or [])
+        ))] + parser_messages
     )
     stage = stage_got.model_copy(update={
         "stage_related": response.stage_related,
@@ -166,10 +173,12 @@ def input_parser(state: PathFinderState):
         "message_tag": response.message_tag.model_dump(),
         "user_tag": user_tag_model.model_copy(update=user_signal_patch).model_dump(),
     }
+    if message_removals:
+        updates["messages"] = message_removals
 
     #tagger
-    if len(state["messages"]) > 0:
-        latest_msg = state["messages"][-1]
+    if len(messages) > 0:
+        latest_msg = messages[-1]
         updates["routing_memory"] = [latest_msg]
         for s in response.stage_related:
             if is_stage_name(s):

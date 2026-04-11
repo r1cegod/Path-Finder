@@ -143,6 +143,7 @@ venv\Scripts\python eval/run_sub_orchestrator_focus_eval.py --target worker --fi
   - active trigger evidence
   - or an already-established prior signal
 - `RemoveMessage(...)` remains the right deletion mechanism for `routing_memory`.
+- The main `messages` lane now uses the same deletion mechanism separately, with a 2k pre-orchestrator window that preserves the latest user turn.
 
 ## Key Files
 

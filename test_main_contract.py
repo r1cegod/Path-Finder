@@ -33,6 +33,20 @@ class MainContractTest(unittest.TestCase):
         self.assertEqual(serialized["currentStage"], "uni")
         self.assertEqual(serialized["completedStages"], ["uni"])
 
+    def test_serialize_state_maps_forced_anchor_stage(self):
+        result = {
+            "stage": {
+                "current_stage": "thinking",
+                "anchor_stage": "university",
+                "anchor_mode": "forced",
+            },
+        }
+
+        serialized = serialize_state(result)
+
+        self.assertEqual(serialized["currentStage"], "thinking")
+        self.assertEqual(serialized["forcedStage"], "uni")
+
 
 if __name__ == "__main__":
     unittest.main()

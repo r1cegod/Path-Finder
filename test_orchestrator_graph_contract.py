@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, RemoveMessage
 
 from backend.orchestrator_graph import (
     _classify_escalation_reason,
@@ -53,6 +53,56 @@ class OrchestratorGraphContractTest(unittest.TestCase):
         self.assertEqual(len(updates["routing_memory"]), 1)
         self.assertEqual(updates["routing_memory"][0].content, "student message")
         self.assertEqual(updates["thinking_style_message"][0].content, "student message")
+
+    def test_input_parser_prunes_messages_before_orchestrator_prompt(self):
+        class CapturingInputLLM:
+            def __init__(self):
+                self.prompt = None
+
+            def invoke(self, prompt):
+                self.prompt = prompt
+                return SimpleNamespace(
+                    bypass_stage=False,
+                    stage_related=[],
+                    requested_anchor_stage="",
+                    message_tag=SimpleNamespace(model_dump=lambda: {"message_type": "true", "response_tone": "socratic"}),
+                    parental_pressure=False,
+                    burnout_risk=False,
+                    urgency=False,
+                    core_tension=False,
+                    reality_gap=False,
+                )
+
+        fake_llm = CapturingInputLLM()
+        state = {
+            "messages": [
+                HumanMessage(content="old one " * 900, id="m1"),
+                HumanMessage(content="old two " * 900, id="m2"),
+                HumanMessage(content="old three " * 900, id="m3"),
+                HumanMessage(content="latest user " * 40, id="m4"),
+            ],
+            "routing_memory": [],
+            "stage": {
+                "stage_related": [],
+                "current_stage": "thinking",
+                "anchor_stage": "thinking",
+                "anchor_mode": "normal",
+                "requested_anchor_stage": "",
+                "contradict": False,
+                "contradict_target": [],
+            },
+            "user_tag": None,
+            "message_tag": None,
+        }
+
+        with patch("backend.orchestrator_graph.input_llm", new=fake_llm):
+            updates = input_parser(state)
+
+        prompt_messages = fake_llm.prompt[1:]
+        self.assertEqual([message.id for message in prompt_messages], ["m4"])
+        self.assertEqual(len(updates["messages"]), 3)
+        self.assertTrue(all(isinstance(message, RemoveMessage) for message in updates["messages"]))
+        self.assertEqual(updates["routing_memory"][0].id, "m4")
 
     def test_classify_escalation_reason_covers_live_reason_prefixes(self):
         cases = {

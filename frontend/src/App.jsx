@@ -1,11 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Shell from './components/Shell';
 import NeuralInterface from './components/chat/NeuralInterface';
 import { DEFAULT_APP_STATE, INITIAL_MESSAGES } from './data/mockState';
 import { sendMessage } from './api/chat';
+import { getBackendState, patchBackendState, startTrace, stopTrace } from './api/debug';
+import { DEBUG_FIXTURES, createForcedStageFinishFixture, createForcedStageFixture } from './data/debugFixtures';
+
+function deepMerge(base, patch) {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return patch;
+  const merged = { ...(base ?? {}) };
+  Object.entries(patch).forEach(([key, value]) => {
+    if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      merged[key] = deepMerge(merged[key], value);
+    } else {
+      merged[key] = value;
+    }
+  });
+  return merged;
+}
 
 export default function App() {
-  const [sessionId]               = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [activeTab, setActiveTab] = useState('profile');
   const [messages, setMessages]   = useState(INITIAL_MESSAGES);
   const [appState, setAppState]   = useState(DEFAULT_APP_STATE);
@@ -21,6 +36,77 @@ export default function App() {
       return merged;
     });
   }
+
+  function patchAppState(patch) {
+    setAppState(prev => deepMerge(prev, patch));
+  }
+
+  function replaceSession(nextSessionId = crypto.randomUUID()) {
+    setSessionId(nextSessionId);
+    setMessages(INITIAL_MESSAGES);
+    setAppState(DEFAULT_APP_STATE);
+    return nextSessionId;
+  }
+
+  async function applyFixture(name, options = {}) {
+    const fixture = DEBUG_FIXTURES[name];
+    if (!fixture) {
+      throw new Error(`Unknown debug fixture: ${name}`);
+    }
+
+    return applyDynamicFixture(fixture, options);
+  }
+
+  async function applyDynamicFixture(fixture, options = {}) {
+    if (fixture.appState) setAppState(deepMerge(DEFAULT_APP_STATE, fixture.appState));
+    if (fixture.messages) setMessages(fixture.messages);
+    if (fixture.backendPatch && options.backend !== false) {
+      const result = await patchBackendState(sessionId, fixture.backendPatch);
+      if (result.frontendState) mergeState(result.frontendState);
+      return result;
+    }
+    return { appState: fixture.appState ?? appState };
+  }
+
+  function forceStage(stageName, options = {}) {
+    return applyDynamicFixture(createForcedStageFixture(stageName), options);
+  }
+
+  function finishForcedStage(stageName, options = {}) {
+    return applyDynamicFixture(createForcedStageFinishFixture(stageName), options);
+  }
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+
+    window.__PF_DEBUG__ = {
+      fixtures: Object.keys(DEBUG_FIXTURES),
+      getSessionId: () => sessionId,
+      getAppState: () => appState,
+      getMessages: () => messages,
+      patchAppState,
+      setMessages,
+      newSession: replaceSession,
+      applyFixture,
+      applyDynamicFixture,
+      forceStage,
+      finishForcedStage,
+      startTrace: () => startTrace(sessionId),
+      stopTrace: () => stopTrace(sessionId),
+      getBackendState: () => getBackendState(sessionId),
+      patchBackendState: async (patch) => {
+        const result = await patchBackendState(sessionId, patch);
+        if (result.frontendState) mergeState(result.frontendState);
+        return result;
+      },
+    };
+
+    return () => {
+      if (window.__PF_DEBUG__?.getSessionId?.() === sessionId) {
+        delete window.__PF_DEBUG__;
+      }
+    };
+  }, [sessionId, appState, messages]);
 
   async function handleSend(text) {
     const userMsg = { id: Date.now() + '', role: 'user', content: text, timestamp: new Date() };

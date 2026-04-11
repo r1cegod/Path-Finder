@@ -39,16 +39,21 @@ export default function ProgressBar({ currentStage, forcedStage, completedStages
           const isDone = completed.includes(stage.key);
           const isCurrent = currentStage === stage.key;
           const isForced = forcedStage === stage.key;
-          const isLit = isCurrent || isForced;
+          const isLit = isForced || (isCurrent && !isDone);
 
           return (
-            <div key={stage.key} className="relative z-10 flex w-16 flex-col items-center">
+            <div
+              key={stage.key}
+              data-progress-stage={stage.key}
+              data-progress-state={isLit ? 'active' : isDone ? 'complete' : 'pending'}
+              className="relative z-10 flex w-16 flex-col items-center"
+            >
               <div
                 className={`mt-[4px] h-3 w-3 rounded-full ${
-                  isDone
-                    ? 'border-2 border-accent-purple bg-accent-purple'
-                    : isLit
-                      ? 'border-2 border-accent-purple bg-base ring-[3px] ring-accent-purple/25'
+                  isLit
+                    ? 'border-2 border-accent-purple bg-base ring-[3px] ring-accent-purple/25'
+                    : isDone
+                      ? 'border-2 border-accent-purple bg-accent-purple'
                       : 'border-2 border-muted-line bg-base'
                 }`}
               />

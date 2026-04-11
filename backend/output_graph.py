@@ -3,11 +3,10 @@ from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 import os
-import re
-import unicodedata
 from backend.data.state import PathFinderState, StageCheck
 from backend.data.prompts.output import build_compiler_prompt
 from backend.data.contracts.stages import is_stage_name, STAGE_TO_QUEUE_KEY
+from backend.text_safety import sanitize_student_reply
 
 #prep
 load_dotenv()
@@ -18,21 +17,7 @@ output_llm = ChatOpenAI(model="gpt-5.4-mini", temperature=0.0)
 
 
 def _sanitize_student_reply(text: str) -> str:
-    def keep_char(ch: str) -> bool:
-        if ch in "\n\r\t":
-            return True
-        category = unicodedata.category(ch)
-        if category[0] in {"Z", "P", "N"}:
-            return True
-        if category.startswith("L"):
-            return "LATIN" in unicodedata.name(ch, "")
-        return False
-
-    cleaned = "".join(ch if keep_char(ch) else " " for ch in text)
-    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
-    cleaned = re.sub(r" *\n *", "\n", cleaned)
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    return cleaned.strip()
+    return sanitize_student_reply(text)
 
 #dict to obj
 def get_stage(state: PathFinderState) -> StageCheck:
@@ -51,7 +36,7 @@ def output_compiler(state: PathFinderState) -> dict:
         [SystemMessage(content=compiler_prompt)] + state["messages"]
     )
     content = response.content if isinstance(response.content, str) else str(response.content)
-    ai_message = AIMessage(content=_sanitize_student_reply(content))
+    ai_message = AIMessage(content=sanitize_student_reply(content))
     updates = {
         "messages": [ai_message],
         "routing_memory": [ai_message],

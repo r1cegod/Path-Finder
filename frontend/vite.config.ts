@@ -16,6 +16,7 @@ export default defineConfig(() => {
       proxy: {
         '/chat': 'http://localhost:8000',
         '/test': 'http://localhost:8000',
+        '/debug': 'http://localhost:8000',
       },
     },
   };

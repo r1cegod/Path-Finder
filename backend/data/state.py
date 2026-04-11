@@ -270,6 +270,7 @@ class PathFinderState(TypedDict):
     # ─── LAYER 1: CONVERSATION ─────────────────────────────
     messages: Annotated[list, add_messages]
     # Auto-appends via LangGraph's add_messages reducer.
+    # input_parser prunes oldest messages with RemoveMessage when this lane crosses 2k tokens.
     # Returning {"messages": [new_msg]} APPENDS — it does NOT overwrite.
 
     stage_reasoning: StageReasoning

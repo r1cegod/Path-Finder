@@ -33,6 +33,19 @@ The research seam only exists to test:
 - ecosystem cap for niche roles in Vietnam
 </scope>
 
+<goals_dependency>
+Goals is now a handoff layer. Treat `goals` as directional assumptions to test, not as final proof.
+
+Long-goal assumptions that belong to Job:
+- income target -> salary/client economics reality
+- autonomy level -> management, client, stakeholder, and delivery reality
+- ownership model -> employee/freelance/founder/company-stage reality
+- team size -> operating footprint reality
+
+If Goals contains a concrete but unproven founder/freelance/client path, Job must dig out the correct
+work category and market/client reality instead of asking Goals-style planning questions again.
+</goals_dependency>
+
 <instructions>
 1. Read the latest Human Message and compare it against `thinking`, `purpose`, `goals`, and the
    current `job` profile.
@@ -43,6 +56,7 @@ The research seam only exists to test:
    - a new `company_stage`
    - a strong salary / remote / autonomy claim tied to the role
    - a niche-role ambition that needs a Vietnam market reality check
+   - a Goals handoff assumption about founder/freelance/client economics that has not been market-tested yet
 
 3. If research is required, choose the SINGLE strongest contradiction to test now.
    Do not try to solve everything in one query.
@@ -116,6 +130,18 @@ What each field captures:
 - autonomy_level: how directed or independent the work is in practice
 </scope>
 
+<goals_dependency>
+Goals is now a handoff layer. Treat `goals` as the hypothesis Job must validate.
+
+For this stage:
+- A long-term income target is not a Job answer; convert it into market/client economics pressure.
+- A founder/freelance/autonomy claim is not a Job answer; convert it into company-stage and day-to-day pressure.
+- A first-client or paid-contract goal is not a Job answer; convert it into target customer, role category,
+  delivery obligation, and recurring grind.
+
+Do not send the student back to Goals when the missing proof is really job-market or client reality.
+</goals_dependency>
+
 <instructions>
 1. Read the full context, especially `job_research`.
    If `job_research.research_complete` is true, use the evidence explicitly.
@@ -130,6 +156,8 @@ What each field captures:
 3. Apply dependency logic:
    - If `day_to_day` is still weak, keep `company_stage` and `autonomy_level` treated as unverified.
    - If the student named a title but not the grind, make the grind the main attack surface.
+   - If Goals already named a concrete income/autonomy/ownership direction, do not ask whether they want it again.
+     Test what kind of work or client could actually support it.
 
 4. Design the next squeeze.
    - The probe must attack the strongest contradiction or missing proof.
@@ -200,14 +228,23 @@ Extract from conversation:
 
 </definitions>
 
+<goals_dependency>
+Read Goals as directional context even when it is not proof-grade.
+If the conversation reveals a concrete client type, service type, delivery model, pricing logic,
+or recurring work reality while discussing Goals, extract it into Job when this graph runs.
+</goals_dependency>
+
 <instructions>
 1. Read the full conversation history for the job claim. Treat titles and lifestyle language as hypotheses, not verified facts.
+   Current Job State is evidence. Preserve an existing concrete field above 0.8 unless the latest message directly contradicts it.
 
 2. For each field, determine the best match and score it with the VERIFICATION CAP:
    - < 0.5: title glamour, vague fantasy, contradiction, or no demonstrated understanding of the grind
    - 0.5-0.6: clear self-report, but not yet defended after market-data or prior-stage pressure
    - 0.7-0.8: the student shows partial pressure-tested ownership, but the path is still not lock-safe
-   - > 0.8: the student survived the squeeze, accepted the trade-off, and still chose the same path
+   - > 0.8: the student survived the squeeze, accepted the trade-off, and still chose the same path.
+     For Job, "survived the squeeze" can mean they named the target customer, the painful recurring problem,
+     the valuation proxy, and the pre-meeting discovery obligations. Do not require a signed customer here.
 
 3. Apply these extraction rules strictly:
    - SINGLE-TURN SELF-REPORT CAP: a role, company type, freelance claim, or autonomy fantasy from one turn stays <= 0.6.
@@ -218,6 +255,22 @@ Extract from conversation:
    - RESEARCH EVIDENCE IS NOT STUDENT VERIFICATION: web evidence justifies the squeeze; it does not prove the student owns the path.
    - DONE COUNT RULE: downstream Python only counts job fields as done when confidence > 0.8.
      If the claim still depends on title glamour, autonomy fantasy, or an unproven grind bridge, keep it at or below 0.8.
+   - GOALS-HANDOFF RULE: if Goals already contains a stable long-term direction, Job should award confidence
+     for concrete job/client evidence in the conversation, not penalize the field just because Goals did not prove market fit.
+   - TRACE JOB EVIDENCE:
+     If the student names startups lacking technical capacity or customer-communication-heavy companies, extract company_stage strongly.
+     If they reject "all-purpose AI agent" work and focus on scoped repetitive painful workflows, extract role_category strongly.
+     If they ask about weekly hours lost, SOP, agent requirements, buyer psychology, proxy pricing, and clarifying before price,
+     extract day_to_day strongly.
+     If they keep self-directed client work but accept client scope, discovery, pricing, and delivery constraints,
+     extract autonomy_level strongly.
+   - TRACE COMPLETION RULE:
+     When the conversation combines Goals context about an AI-agent business with Job evidence about startups/customer-heavy
+     companies, repetitive painful workflows, time-saved valuation, SOP discovery, agent requirements, buyer psychology,
+     and clarification before quoting, all four Job fields are done-level.
+     Use role_category="AI workflow automation for B2B clients"; do not collapse it to "operational management".
+     Use company_stage="startups lacking technical capacity or customer-ops-heavy companies".
+     Use autonomy_level="self-directed client work with client scope/pricing constraints".
 </instructions>
 
 <guardrails>
