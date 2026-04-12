@@ -165,7 +165,7 @@ class PurposeProfile(BaseModel):
 
 class GoalsLongProfile(BaseModel):
     # ─ Stage 2a: Long-term horizon (5–10 year) ─────────────
-    done: bool
+    done: bool = False
     income_target: FieldEntry     # concrete number + timeframe ("$5k/mo by 28")
     autonomy_level: FieldEntry    # "full" | "partial" | "employee"
     ownership_model: FieldEntry   # "founder" | "partner" | "freelance" | "employee"
@@ -174,7 +174,7 @@ class GoalsLongProfile(BaseModel):
 
 class GoalsShortProfile(BaseModel):
     # ─ Stage 2b: Short-term horizon (next 1–2 years) ───────
-    done: bool
+    done: bool = False
     skill_targets: FieldEntry     # specific skills to acquire now
     portfolio_goal: FieldEntry    # what they want to show in 1 year
     credential_needed: FieldEntry # "degree" | "cert" | "portfolio-only"

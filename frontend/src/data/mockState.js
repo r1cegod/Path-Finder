@@ -10,6 +10,7 @@ export const DEFAULT_APP_STATE = {
   major:           null,
   uni:             null,
   user_tag:        null,
+  testStatus:      { miSubmitted: false, riasecSubmitted: false },
 };
 
 export const INITIAL_MESSAGES = [];

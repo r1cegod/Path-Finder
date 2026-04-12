@@ -137,6 +137,28 @@ class StageProfileUtilsContractTest(unittest.TestCase):
         self.assertFalse(normalized.long.done)
         self.assertTrue(normalized.short.done)
 
+    def test_goals_nested_profiles_tolerate_missing_done_from_structured_output(self):
+        profile = GoalsProfile(
+            done=False,
+            long=GoalsLongProfile(
+                income_target=_field(0.92, "$5k/mo by 28"),
+                autonomy_level=_field(0.91, "full"),
+                ownership_model=_field(0.93, "founder"),
+                team_size=_field(0.91, "small"),
+            ),
+            short=GoalsShortProfile(
+                skill_targets=_field(0.9, "ship products"),
+                portfolio_goal=_field(0.91, "2 real apps"),
+                credential_needed=_field(0.82, "degree"),
+            ),
+        )
+
+        normalized = normalize_stage_profile("goals", profile)
+
+        self.assertTrue(normalized.done)
+        self.assertTrue(normalized.long.done)
+        self.assertTrue(normalized.short.done)
+
 
 if __name__ == "__main__":
     unittest.main()

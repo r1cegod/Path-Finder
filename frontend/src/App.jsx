@@ -33,6 +33,14 @@ export default function App() {
       if (newState.thinking) {
         merged.thinking = { ...(prev.thinking ?? {}), ...newState.thinking };
       }
+      if (newState.testStatus) {
+        merged.testStatus = {
+          ...(prev.testStatus ?? {}),
+          ...newState.testStatus,
+          miSubmitted: Boolean(prev.testStatus?.miSubmitted || newState.testStatus.miSubmitted),
+          riasecSubmitted: Boolean(prev.testStatus?.riasecSubmitted || newState.testStatus.riasecSubmitted),
+        };
+      }
       return merged;
     });
   }

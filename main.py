@@ -53,6 +53,32 @@ QUEUE_KEYS = {
     "routing_memory",
 }
 
+CHECKPOINT_PATCH_NODE = "__start__"
+
+
+def _blank_thinking_profile() -> dict:
+    def empty_field() -> dict:
+        return {"content": "not yet", "confidence": 0.0}
+
+    return {
+        "done": False,
+        "learning_mode": empty_field(),
+        "env_constraint": empty_field(),
+        "social_battery": empty_field(),
+        "personality_type": empty_field(),
+        "brain_type": [],
+        "riasec_top": [],
+        "riasec_scores": [],
+    }
+
+
+def _coerce_thinking_seed(current_thinking: object, thinking_patch: dict) -> dict:
+    if hasattr(current_thinking, "model_dump"):
+        current_thinking = current_thinking.model_dump()
+    if not isinstance(current_thinking, dict):
+        current_thinking = {}
+    return {**_blank_thinking_profile(), **current_thinking, **thinking_patch}
+
 
 def debug_enabled() -> bool:
     return os.getenv("PATHFINDER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
@@ -133,22 +159,26 @@ def serialize_state(result: dict) -> dict:
 
 @app.post("/test/{session_id}")
 async def test_submit(session_id: str, request: TestRequest):
+    submitted_brain = "brain_type" in request.model_fields_set
+    submitted_riasec = "riasec_top" in request.model_fields_set
     thinking_patch = {
-        **({"brain_type": request.brain_type} if request.brain_type else {}),
-        **({"riasec_top": request.riasec_top} if request.riasec_top else {}),
+        **({"brain_type": request.brain_type} if submitted_brain else {}),
+        **({"riasec_top": request.riasec_top} if submitted_riasec else {}),
     }
     config = {"configurable": {"thread_id": session_id}}
 
     # Merge into existing thinking (may be None for new session, or partially filled by scoring)
     snapshot = await input_orchestrator.aget_state(config)
-    current_thinking = snapshot.values.get("thinking") or {}
-    if hasattr(current_thinking, "model_dump"):
-        current_thinking = current_thinking.model_dump()
-    merged_thinking = {**current_thinking, **thinking_patch}
-    await input_orchestrator.aupdate_state(config, {"thinking": merged_thinking})
+    current_thinking = snapshot.values.get("thinking")
+    merged_thinking = _coerce_thinking_seed(current_thinking, thinking_patch)
+    await input_orchestrator.aupdate_state(
+        config,
+        {"thinking": merged_thinking},
+        as_node=CHECKPOINT_PATCH_NODE,
+    )
 
     async def generate():
-        yield f"data: {json.dumps({'type': 'state', 'data': {'thinking': thinking_patch}})}\n\n"
+        yield f"data: {json.dumps({'type': 'state', 'data': {'thinking': thinking_patch, 'testStatus': {'miSubmitted': submitted_brain, 'riasecSubmitted': submitted_riasec}}})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -179,7 +209,11 @@ async def debug_get_state(session_id: str):
 async def debug_patch_state(session_id: str, request: DebugStatePatchRequest):
     require_debug_enabled()
     config = {"configurable": {"thread_id": session_id}}
-    await input_orchestrator.aupdate_state(config, _coerce_debug_patch(request.patch))
+    await input_orchestrator.aupdate_state(
+        config,
+        _coerce_debug_patch(request.patch),
+        as_node=CHECKPOINT_PATCH_NODE,
+    )
     snapshot = await input_orchestrator.aget_state(config)
     return _state_payload(snapshot.values)
 

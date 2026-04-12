@@ -181,8 +181,8 @@ export default function TestTab({ sessionId, onStateUpdate, appState }) {
   const [submitError, setSubmitError] = useState('');
 
   // Derived from real state — survives tab switches
-  const miSubmitted = (appState?.thinking?.brain_type?.length ?? 0) > 0;
-  const riasecSubmitted = (appState?.thinking?.riasec_top?.length ?? 0) > 0;
+  const miSubmitted = Boolean(appState?.testStatus?.miSubmitted) || (appState?.thinking?.brain_type?.length ?? 0) > 0;
+  const riasecSubmitted = Boolean(appState?.testStatus?.riasecSubmitted) || (appState?.thinking?.riasec_top?.length ?? 0) > 0;
 
   const handleMiAnswer = (id, value) => {
     setSubmitError('');
