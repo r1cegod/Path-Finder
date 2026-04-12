@@ -3,7 +3,7 @@
 > Navigation only. One line per day. Open the linked day file for the actual note.
 > The daily file is the log. This index is the map.
 
-- 2026-04-12 | Thinking quiz-state fix, Goals schema fix, live frontend workflow, and uncertainty attack test fixes | [entry](./dev/days/2026-04-12.md)
+- 2026-04-12 | Thinking quiz-state fix, Goals schema fix, live frontend workflow, output stage-state lock, Purpose handoff audit, uncertainty fixes, real-Duc Goals continuation, and same-turn stage transition | [entry](./dev/days/2026-04-12.md)
 - 2026-04-11 | Main `messages` cutoff, live trace harness, first product conversation, trace-to-Goals audit, frontend forced-stage evaluation, and Goals handoff prompt replay | [entry](./dev/days/2026-04-11.md)
 - 2026-04-10 | Routing-memory lane plus sub-orchestrator focus eval through Round 3 | [entry](./dev/days/2026-04-10.md)
 - 2026-04-09 | Confidence prompts aligned to `> 0.8`, replayed cleanly, and structured-output serializer warning debt paid | [entry](./dev/days/2026-04-09.md)

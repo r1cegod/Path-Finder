@@ -193,7 +193,12 @@ def _is_done(profile) -> bool:
         return profile.get("done", False)
     return getattr(profile, "done", False)
 
-def stage_manager(state: PathFinderState) -> dict:
+def _stage_manager_updates(
+    state: PathFinderState,
+    *,
+    count_contradictions: bool,
+    ignore_completed_previous_stage: bool,
+) -> dict:
     stage = get_stage(state)
     old_contradict_count = state.get("contradict_count") or 0
 
@@ -210,15 +215,19 @@ def stage_manager(state: PathFinderState) -> dict:
     prev_mode   = stage.anchor_mode or "normal"
     current     = prev_stage
     current_idx = STAGE_INDEX.get(current, 0)
+    completed_previous_stage = ""
 
     if _is_done(state.get(current)):
         for next_stage in STAGE_ORDER[current_idx + 1:]:
             if not _is_done(state.get(next_stage)):
+                completed_previous_stage = current
                 current = next_stage
                 current_idx = STAGE_INDEX.get(current, 0)
                 break
 
     related = [s for s in stage.stage_related if is_stage_name(s)]
+    if ignore_completed_previous_stage and completed_previous_stage:
+        related = [s for s in related if s != completed_previous_stage]
     past   = [s for s in related if STAGE_INDEX.get(s, current_idx) < current_idx]
 
     requested_target = stage.requested_anchor_stage if is_stage_name(stage.requested_anchor_stage) else ""
@@ -247,7 +256,10 @@ def stage_manager(state: PathFinderState) -> dict:
         "contradict_target": past if has_contradict else [],
     })
 
-    new_contradict = old_contradict_count + 1 if has_contradict else max(0, old_contradict_count - 1)
+    if count_contradictions:
+        new_contradict = old_contradict_count + 1 if has_contradict else max(0, old_contradict_count - 1)
+    else:
+        new_contradict = old_contradict_count
 
     #path debate check
     bypass_stage = state.get("bypass_stage")
@@ -258,9 +270,25 @@ def stage_manager(state: PathFinderState) -> dict:
         "stage": updated.model_dump(),
         "contradict_count": new_contradict,
         "path_debate_ready": path_debate_ready,
-        "stage_transitioned": anchor_stage != prev_anchor,
+        "stage_transitioned": bool(state.get("stage_transitioned")) or anchor_stage != prev_anchor,
     }
     return result
+
+
+def stage_manager(state: PathFinderState) -> dict:
+    return _stage_manager_updates(
+        state,
+        count_contradictions=True,
+        ignore_completed_previous_stage=False,
+    )
+
+
+def post_stage_manager(state: PathFinderState) -> dict:
+    return _stage_manager_updates(
+        state,
+        count_contradictions=False,
+        ignore_completed_previous_stage=True,
+    )
 
 def counter_manager(state: PathFinderState) -> dict:
     msg_tag_raw = state.get("message_tag")
@@ -367,6 +395,7 @@ builder.add_node("input_parser",    input_parser)
 builder.add_node("sub_orchestrator", sub_orchestrator_node)
 builder.add_node("stage_manager",   stage_manager)
 builder.add_node("counter_manager", counter_manager)
+builder.add_node("post_stage_manager", post_stage_manager)
 
 builder.add_node("thinking",   thinking_graph)
 builder.add_node("purpose",    purpose_graph)
@@ -388,9 +417,10 @@ _stage_targets = [*STAGE_ORDER, "context_compiler"]
 builder.add_conditional_edges("counter_manager", route_stage, _stage_targets)
 
 for _s in STAGE_ORDER:
-    builder.add_edge(_s, "context_compiler")
+    builder.add_edge(_s, "post_stage_manager")
 
 #outputchain
+builder.add_edge("post_stage_manager", "context_compiler")
 builder.add_edge("context_compiler", "output_compiler")
 builder.add_edge("output_compiler",  END)
 

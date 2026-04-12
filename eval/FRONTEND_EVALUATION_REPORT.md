@@ -2,7 +2,63 @@
 
 ## Current Focused Live Reports
 
+- 2026-04-12 frontend trace output regression: `eval/live_frontend_output_regression_2026-04-12.jsonl`
 - 2026-04-12 uncertainty attack: `eval/UNCERTAINTY_ATTACK_REPORT_2026-04-12.md`
+- 2026-04-12 real-Duc identity continuation: `eval/IDENTITY_CONTINUATION_GOALS_REPORT_2026-04-12.md`
+
+### 2026-04-12 Frontend Trace Output Regression
+
+Source traces:
+
+- `eval/threads/f942d643-8941-40f7-ab6d-d378e0e6fe7f/traces/live_0019.json`
+- `eval/threads/f942d643-8941-40f7-ab6d-d378e0e6fe7f/traces/live_0020.json`
+- `eval/threads/f942d643-8941-40f7-ab6d-d378e0e6fe7f/traces/live_0021.json`
+- `eval/threads/duc-goals-continuation-20260412/traces/live_0004.json`
+
+The first three rows reproduce the frontend finding where Purpose had strong evidence but `purpose.done === false`, while the output compiler still drifted into Goals/Job/Major wording. The fourth row keeps the old documented Goals transition-lag state as a comparison case; the current graph now has a `post_stage_manager` fix for fresh same-turn completions.
+
+Fix:
+
+- Output stage progress now distinguishes `stage marked complete` from `all fields filled, but stage is not marked complete`.
+- Incomplete current stages inject `<current_stage_lock>`, suppress future-stage pivot offers, and append a final runtime override after the conversation messages so raw backend state wins over the latest user topic.
+- Follow-up integration check narrowed `<current_stage_lock>` so it no longer conflicts with the upgraded `STAGE_INTRO_BLOCK`: transition turns may acknowledge the previous-stage handoff, but cannot move beyond the newly active current stage.
+- Stage prompt audit found Purpose lacked the Goals-style handoff-sufficiency policy. `purpose.py` now defines Purpose as an identity-prior checkpoint and lets risk/core/location fields become handoff-stable when execution realism belongs to Goals, Job, or Major.
+- Sub-orchestrator workers now read a 2.5k-token recent tail while the 5k `routing_memory` lane remains available for summarization, reducing every-fifth-turn fanout cost without dropping the long-memory summaries.
+
+Verification:
+
+```powershell
+venv\Scripts\python eval\run_eval.py --mode multi --file eval\live_frontend_output_regression_2026-04-12.jsonl --graph output --workers 1
+venv\Scripts\python -m unittest test_output_prompt_contract.py test_output_graph_contract.py test_orchestrator_graph_contract.py test_purpose_prompt_contract.py test_sub_orchestrator_graph_contract.py test_stage_profile_utils_contract.py test_message_window_contract.py test_main_contract.py test_debug_trace_contract.py
+```
+
+Final semantic audit:
+
+- All 4 output rows ran successfully.
+- The three incomplete-Purpose rows stayed inside Purpose and did not ask Goals/Job/Major handoff questions.
+- The old Goals transition-lag row remained usable as a documented regression case; the current graph has a post-stage manager fix that still needs a fresh live run.
+- Latest rerun after the stage-intro/output-lock integration check passed 4/4 rows and 56 focused contracts.
+
+### 2026-04-12 Real-Duc Identity Continuation
+
+The previous real-Duc trace was restored from `live_0051.json` into debug session `duc-goals-continuation-20260412` instead of replaying 51 turns.
+
+Result:
+
+- Goals completed.
+- Session advanced to `currentStage: "job"`.
+- Final Goals profile is stable on: `$10k/month`, full autonomy, solo-first/small team, AI-agent client-work path, paid pilot deliverable, and portfolio-first credential strategy.
+
+Runtime findings:
+
+- Stage transition originally had a one-turn lag: the turn that first set `goals.done === true` still responded as Goals because `stage_manager` ran before same-turn extraction.
+- Follow-up fix: `post_stage_manager` now runs after each stage graph and before `context_compiler`, so same-turn completion can advance the active stage before the response prompt is built.
+- PowerShell here-string input corrupted Vietnamese accents in saved trace `input.message`; future runs should use `eval/live_session_probe.py send --message-file <utf8-file>`.
+
+Workflow change:
+
+- Added `eval/live_session_probe.py` for restore/start/send/state/stop loops with compact state output.
+- Identity-continuation prompt evaluation should use raw `output` restore plus compact state checks when the frontend UI is not the test target.
 
 ### 2026-04-12 Uncertainty Attack Pre-Chat Bugs
 

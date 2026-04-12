@@ -99,6 +99,9 @@ SUMMARY_FIELDS = [
 
 SUMMARY_NODE_NAMES = {field_name: f"summary_{field_name}" for field_name in SUMMARY_FIELDS}
 
+WORKER_MEMORY_TOKEN_BUDGET = 2500
+WORKER_MEMORY_PRESERVE_TAIL = 2
+
 
 def _coerce_user_tag(raw) -> UserTag:
     if isinstance(raw, UserTag):
@@ -300,6 +303,16 @@ def _merge_summaries_node(state: SubOrchestratorState) -> dict:
     }
 
 
+def _select_worker_memory(state: SubOrchestratorState) -> list:
+    routing_memory = state.get("routing_memory") or state.get("messages", [])
+    _, _, kept, _ = build_fractional_prune_plan(
+        routing_memory,
+        WORKER_MEMORY_TOKEN_BUDGET,
+        preserve_tail=WORKER_MEMORY_PRESERVE_TAIL,
+    )
+    return kept
+
+
 def _router_node(state: SubOrchestratorState) -> dict:
     return {
         "patches": [],
@@ -327,7 +340,7 @@ def _bool_reasoning_worker(field_name: str):
                 field_summary=getattr(summaries, field_name),
                 message_tag=message_tag.model_dump(),
                 user_tag=tag.model_dump(),
-            ))] + (state.get("routing_memory") or state.get("messages", []))
+            ))] + _select_worker_memory(state)
         )
         return {"patches": [{field_name: response.flag, reasoning_field: response.reasoning}]}
 
@@ -352,7 +365,7 @@ def _text_worker(field_name: str):
                 disengagement_turns=state.get("disengagement_turns") or 0,
                 avoidance_turns=state.get("avoidance_turns") or 0,
                 vague_turns=state.get("vague_turns") or 0,
-            ))] + (state.get("routing_memory") or state.get("messages", []))
+            ))] + _select_worker_memory(state)
         )
         return {"patches": [{target_field: _sanitize_generated_text(response.value)}]}
 

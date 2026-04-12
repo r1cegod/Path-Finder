@@ -239,11 +239,19 @@ Step 4 — Compile
   Write in Vietnamese, as long as needed.
 </instruction>"""
 
-STAGE_INTRO_BLOCK = """<stage_intro>
-This is the opening turn of the {anchor_stage} stage — the student just arrived here.
-</stage_intro>"""
-
 # ─── Stage blocks (always injected in B1) ──────────────────
+
+STAGE_INTRO_BLOCK = """<stage_intro>
+This is the opening turn of the {anchor_stage} stage - the student just arrived here.
+If the previous stage just completed, treat it as a handoff, not as a topic to keep drilling.
+Previous funnel stage: {previous_stage}
+
+On this transition turn:
+- briefly acknowledge the completed handoff
+- use prior-stage context as evidence for the new stage
+- ask the opening question for {anchor_stage}
+- do not ask a previous-stage follow-up unless Python has forced or revisited that stage
+</stage_intro>"""
 
 STAGE_CONTEXT_BLOCK = """<stage_context>
 You are guiding the student through the **{anchor_stage}** stage.
@@ -254,6 +262,18 @@ Stage: {anchor_stage}
 Status: {stage_status}
 Fields still needed: {fields_needed}
 </progress>"""
+
+CURRENT_STAGE_LOCK_BLOCK = """<current_stage_lock>
+Raw backend state says the {anchor_stage} stage is NOT complete.
+Any goals/job/major/university content in the latest user message is context evidence only.
+Do not move beyond {anchor_stage}, mark {anchor_stage} complete, or ask a later-stage question this turn.
+If <stage_intro> is present, you may briefly acknowledge the previous-stage handoff, then stay inside {anchor_stage}.
+Future stages after {anchor_stage}: {future_stages}
+Forbidden while this lock is present:
+- "bước tiếp theo", "đi sang", "chuyển sang", "qua phần"
+- asking about any listed future stage as the final question
+The final question must stay inside the {anchor_stage} PROBE.
+</current_stage_lock>"""
 
 PROFILE_CONTEXT_BLOCK = """<student_profile>
 {stage_reasoning}
@@ -587,6 +607,12 @@ RESPONSE_RULES_B = """<response_rules>
   not as a second substantive question.
 - If a <stage_drill> block is present: keep your question open — do not treat any field as
   settled until the constraint in that block is surfaced and the student responds to it.
+- Stage completion: only say a stage is locked, done, complete, or ready for the next
+  stage when <progress> says "stage marked complete". If <progress> says fields are
+  filled but the stage is not marked complete, acknowledge the strong evidence but keep
+  the final question inside the current stage.
+- If <current_stage_lock> is present, do not mention moving or handing off from the
+  current incomplete stage to a later stage. Future-stage details are evidence only.
 - Language hygiene: Vietnamese only. Do not emit stray foreign-script tokens or mixed-language filler
   unless you are directly quoting the student's own words.
 </response_rules>"""
@@ -689,11 +715,30 @@ def _compute_stage_status(state: PathFinderState, current_stage: str) -> tuple[s
     if extracted == 0:
         status = "not started"
     elif extracted == total:
-        status = "all fields complete"
+        profile_mapping = _to_plain_mapping(profile)
+        profile_done = bool(profile_mapping.get("done")) if profile_mapping else bool(getattr(profile, "done", False))
+        if profile_done:
+            status = "stage marked complete"
+        else:
+            status = "all fields filled, but stage is not marked complete"
     else:
         status = f"{extracted}/{total} fields extracted"
-    fields_needed_str = ", ".join(needed) if needed else "all fields complete"
+    fields_needed_str = ", ".join(needed) if needed else (
+        "no missing fields; wait for analyst confidence before calling the stage complete"
+        if status != "stage marked complete"
+        else "stage marked complete"
+    )
     return status, fields_needed_str
+
+def _is_stage_profile_done(state: PathFinderState, current_stage: str) -> bool:
+    profile_key = STAGE_TO_PROFILE_KEY.get(current_stage)
+    profile = state.get(profile_key) if profile_key else None
+    if profile is None:
+        return False
+    profile_mapping = _to_plain_mapping(profile)
+    if profile_mapping is not None:
+        return bool(profile_mapping.get("done"))
+    return bool(getattr(profile, "done", False))
 
 def _build_synthesis_block(state: PathFinderState) -> str:
     reasoning = _get_stage_reasoning(state)
@@ -751,6 +796,44 @@ def _build_pacing_context(*, burnout_risk: bool, burnout_reasoning: str, urgency
 
 def _format_stage_targets(targets: list[str]) -> str:
     return ", ".join(dict.fromkeys([t for t in targets if t])) or "none"
+
+def _format_future_stages(current_stage: str) -> str:
+    current_idx = STAGE_ORDER.index(current_stage) if current_stage in STAGE_ORDER else -1
+    if current_idx < 0:
+        return "none"
+    return ", ".join(STAGE_ORDER[current_idx + 1:]) or "none"
+
+def _previous_funnel_stage(stage_name: str) -> str:
+    current_idx = STAGE_ORDER.index(stage_name) if stage_name in STAGE_ORDER else -1
+    if current_idx <= 0:
+        return "none"
+    return STAGE_ORDER[current_idx - 1]
+
+def build_compiler_runtime_override(state: PathFinderState) -> str:
+    stage = _get_stage(state)
+    current_stage = stage.anchor_stage or stage.current_stage
+    if state.get("escalation_pending") or state.get("bypass_stage") or state.get("path_debate_ready"):
+        return ""
+    if _is_stage_profile_done(state, current_stage):
+        return ""
+    stage_reasoning = _get_stage_reasoning(state)
+    _reasoning_key = {"university": "uni"}
+    current_stage_reasoning = getattr(stage_reasoning, _reasoning_key.get(current_stage, current_stage), "")
+    probe_directive = _extract_probe_directive(current_stage_reasoning)
+    final_instruction = (
+        "Obey raw backend state over the latest user topic. Ask the current-stage PROBE only."
+        if probe_directive
+        else "Obey raw backend state over the latest user topic. Ask only the opening question for the current stage."
+    )
+    return "\n\n".join([
+        CURRENT_STAGE_LOCK_BLOCK.format(
+            anchor_stage=current_stage,
+            future_stages=_format_future_stages(current_stage),
+        ),
+        "<final_instruction>\nThis is the final routing instruction after reading the conversation. "
+        f"{final_instruction}\n"
+        "</final_instruction>",
+    ])
 
 def _select_pivot_offer(stage: StageCheck, current_stage: str, anchor_mode: str) -> tuple[str, str] | None:
     if anchor_mode != "normal":
@@ -936,11 +1019,18 @@ def build_compiler_prompt(state: PathFinderState) -> str:
         avoidance_turns=avoidance_turns,
         vague_turns=vague_turns,
     )
-    pivot_offer = _select_pivot_offer(stage, current_stage, anchor_mode)
+    pivot_offer = (
+        _select_pivot_offer(stage, current_stage, anchor_mode)
+        if _is_stage_profile_done(state, current_stage)
+        else None
+    )
 
     #stage intro
     if stage_transitioned:
-        blocks.append(STAGE_INTRO_BLOCK.format(anchor_stage=current_stage))
+        blocks.append(STAGE_INTRO_BLOCK.format(
+            anchor_stage=current_stage,
+            previous_stage=_previous_funnel_stage(logical_stage),
+        ))
 
     # additive context
     if parental_pressure:
@@ -988,6 +1078,13 @@ def build_compiler_prompt(state: PathFinderState) -> str:
         stage_status=stage_status,
         fields_needed=fields_needed,
     ))
+    current_stage_lock = ""
+    if not _is_stage_profile_done(state, current_stage):
+        current_stage_lock = CURRENT_STAGE_LOCK_BLOCK.format(
+            anchor_stage=current_stage,
+            future_stages=_format_future_stages(current_stage),
+        )
+        blocks.append(current_stage_lock)
     if anchor_mode != "normal" and current_stage != logical_stage:
         blocks.append(ANCHOR_MODE_BLOCK.format(
             anchor_stage=current_stage,
@@ -999,6 +1096,8 @@ def build_compiler_prompt(state: PathFinderState) -> str:
         probe_directive = _extract_probe_directive(current_stage_reasoning)
         if probe_directive:
             blocks.append(PROBE_DIRECTIVE_BLOCK.format(probe_directive=probe_directive))
+            if current_stage_lock:
+                blocks.append(current_stage_lock)
     if cross_stage_reasoning:
         blocks.append(CROSS_STAGE_CONTEXT_BLOCK.format(cross_stage_reasoning=cross_stage_reasoning))
 

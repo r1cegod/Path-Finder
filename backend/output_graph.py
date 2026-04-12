@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 import os
 from backend.data.state import PathFinderState, StageCheck
-from backend.data.prompts.output import build_compiler_prompt
+from backend.data.prompts.output import build_compiler_prompt, build_compiler_runtime_override
 from backend.data.contracts.stages import is_stage_name, STAGE_TO_QUEUE_KEY
 from backend.text_safety import sanitize_student_reply
 
@@ -32,9 +32,11 @@ def context_compiler(state: PathFinderState) -> dict:
 
 def output_compiler(state: PathFinderState) -> dict:
     compiler_prompt = state.get("compiler_prompt") or ""
-    response = output_llm.invoke(
-        [SystemMessage(content=compiler_prompt)] + state["messages"]
-    )
+    prompt_messages = [SystemMessage(content=compiler_prompt)] + state["messages"]
+    runtime_override = build_compiler_runtime_override(state)
+    if runtime_override:
+        prompt_messages.append(SystemMessage(content=runtime_override))
+    response = output_llm.invoke(prompt_messages)
     content = response.content if isinstance(response.content, str) else str(response.content)
     ai_message = AIMessage(content=sanitize_student_reply(content))
     updates = {

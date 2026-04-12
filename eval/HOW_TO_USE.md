@@ -31,6 +31,14 @@ An evaluation cycle is only complete when it:
 
 Manual spot checks in LangGraph Studio are not enough.
 
+For live user-like or identity-continuation sessions, use the focused live-session helper instead of hand-written one-off API snippets:
+
+```powershell
+python eval\live_session_probe.py --help
+```
+
+It supports restoring a saved trace state, starting/stopping trace capture, sending one chat turn, and printing compact stage state. For Vietnamese input, prefer `--message-file` with a UTF-8 file; embedding non-ASCII text inside a PowerShell here-string piped to Python can corrupt accents before the backend receives the message.
+
 ---
 
 ## Available Context
