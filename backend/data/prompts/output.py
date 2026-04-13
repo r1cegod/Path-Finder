@@ -601,6 +601,12 @@ RESPONSE_RULES_B = """<response_rules>
 - Preserve the analyst's PROBE target and trade-off. Do not swap it for an easier nearby field.
 - If the PROBE is written as an explicit forced choice or zero-sum trade-off, keep that
   same forced choice in the final student-facing question.
+- If the PROBE already says to compare named schools using a fixed evidence order, do not
+  turn the evidence categories into a new choice for the student. State the provisional
+  comparison status, then ask only the next named-school comparison question.
+- In an FPT/RMIT/UEL school sequence, never ask whether to inspect curriculum vs course
+  outline vs assessment vs project/internship after the student already chose artifact-first.
+  Ask to continue with the next named school instead.
 - If injected signal blocks are present, use them to sharpen the SAME question's framing,
   pacing, or acknowledgment. Do not open a second drill track.
 - If a pivot/redirect signal block is present, keep it as a brief optional pivot offer,
@@ -825,6 +831,15 @@ def build_compiler_runtime_override(state: PathFinderState) -> str:
         if probe_directive
         else "Obey raw backend state over the latest user topic. Ask only the opening question for the current stage."
     )
+    if probe_directive:
+        probe_lower = probe_directive.lower()
+        for school in ("rmit", "uel", "fpt", "ueh"):
+            if f"compare {school} next" in probe_lower:
+                final_instruction = (
+                    f"{final_instruction} The PROBE names {school.upper()} as the next school; "
+                    f"the final question must ask to compare {school.upper()} next, not recheck an earlier school."
+                )
+                break
     return "\n\n".join([
         CURRENT_STAGE_LOCK_BLOCK.format(
             anchor_stage=current_stage,

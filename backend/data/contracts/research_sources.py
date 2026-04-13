@@ -30,6 +30,17 @@ JOB_ROLE_REALITY_DOMAINS: tuple[str, ...] = (
 
 MAJOR_REALITY_DOMAINS: tuple[str, ...] = (
     "moet.gov.vn",
+    "vnu.edu.vn",
+    "vnuhcm.edu.vn",
+    "hust.edu.vn",
+    "hcmut.edu.vn",
+    "ftu.edu.vn",
+    "neu.edu.vn",
+    "uel.edu.vn",
+    "ueh.edu.vn",
+    "fpt.edu.vn",
+    "rmit.edu.vn",
+    "usth.edu.vn",
     "topcv.vn",
     "glints.com",
     "thanhnien.vn",
@@ -44,6 +55,11 @@ UNIVERSITY_OFFICIAL_DOMAINS: tuple[str, ...] = (
     "hcmut.edu.vn",
     "ftu.edu.vn",
     "neu.edu.vn",
+    "uel.edu.vn",
+    "ueh.edu.vn",
+    "fpt.edu.vn",
+    "rmit.edu.vn",
+    "usth.edu.vn",
 )
 
 UNIVERSITY_ADMISSIONS_DOMAINS: tuple[str, ...] = (

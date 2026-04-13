@@ -3,6 +3,7 @@
 > Navigation only. One line per day. Open the linked day file for the actual note.
 > The daily file is the log. This index is the map.
 
+- 2026-04-13 | University-finding frontend eval, Major MIS handoff fix, University comparison replay hardening, vault-only evaluation docs rule, and centralized test-folder rule | [entry](./dev/days/2026-04-13.md)
 - 2026-04-12 | Thinking quiz-state fix, Goals schema fix, live frontend workflow, output stage-state lock, Purpose handoff audit, uncertainty fixes, real-Duc Goals continuation, and same-turn stage transition | [entry](./dev/days/2026-04-12.md)
 - 2026-04-11 | Main `messages` cutoff, live trace harness, first product conversation, trace-to-Goals audit, frontend forced-stage evaluation, and Goals handoff prompt replay | [entry](./dev/days/2026-04-11.md)
 - 2026-04-10 | Routing-memory lane plus sub-orchestrator focus eval through Round 3 | [entry](./dev/days/2026-04-10.md)

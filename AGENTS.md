@@ -28,6 +28,7 @@ This prints the mandatory vault read order and paths, but it does NOT replace re
 | `backend/` | All graph code |
 | `backend/data/state.py` | `PathFinderState` TypedDict + all Pydantic models |
 | `backend/data/prompts/` | Per-stage system prompts |
+| `backend/test/` | Central Python test folder. Put new contract/regression tests here; do not add root-level `test_*.py` files. |
 | `frontend/` | React frontend |
 | `eval/` | Eval pipeline — read `eval/HOW_TO_USE.md` first |
 | `docs (archived)/` | Old docs — vault holds canonical docs, not this folder |
@@ -45,6 +46,7 @@ Mirrored from vault `context/me.md`. Canonical copy lives there — edit both he
 
 - **Bug-First:** fix confirmed breaks before adding features.
 - **Bottom-Up Law:** build and verify components in isolation before wiring graphs.
+- **Test Folder Rule:** all Python tests live under `backend/test/`; do not scatter `test_*.py` files at repo root or beside implementation modules.
 - **One Wire Per Response:** don't dump multiple implementation steps at once.
 - **Output Audit:** before writing code — am I giving the final custom answer or the blueprint to derive it? Give the blueprint.
 

@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict
@@ -167,6 +167,84 @@ def _collect_source_urls(response) -> list[str]:
     return [hit.url for hit in response.hits if hit.url]
 
 
+def _message_content(message: BaseMessage) -> str:
+    content = getattr(message, "content", "")
+    return content if isinstance(content, str) else str(content)
+
+
+def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
+    return any(needle in text for needle in needles)
+
+
+def _is_product_ba_ux_mis_handoff(profile: MajorProfile, messages: list[BaseMessage]) -> bool:
+    field_content = profile.field.content.lower()
+    transcript = "\n".join(_message_content(message).lower() for message in messages[-8:])
+
+    has_mis_choice = (
+        "mis" in field_content
+        or "management information systems" in field_content
+        or _contains_any(transcript, ("chon mis", "chọn mis", "mis la major uu tien", "mis là major ưu tiên"))
+    )
+    has_product_ba_ux_bridge = "product" in transcript and (
+        "ux" in transcript or "ba" in transcript or "business analyst" in transcript
+    )
+    has_curriculum_filter = _contains_any(
+        transcript,
+        (
+            "project artifact",
+            "artifact",
+            "business system data",
+            "business-system-data",
+            "user/product thinking",
+            "product/user thinking",
+            "khong code thuan",
+            "không code thuần",
+        ),
+    )
+    asks_school_verification = _contains_any(
+        transcript,
+        (
+            "university",
+            "truong",
+            "trường",
+            "ueh",
+            "fpt",
+            "rmit",
+            "uel",
+            "theo truong",
+            "theo trường",
+        ),
+    )
+
+    return has_mis_choice and has_product_ba_ux_bridge and has_curriculum_filter and asks_school_verification
+
+
+def _floor_if_near_done(field):
+    confidence = float(field.confidence or 0.0)
+    if 0.7 <= confidence <= DONE_CONFIDENCE_THRESHOLD:
+        return field.model_copy(update={"confidence": DONE_CONFIDENCE_THRESHOLD + 0.01})
+    return field
+
+
+def _apply_major_handoff_floor(profile: MajorProfile, messages: list[BaseMessage]) -> MajorProfile:
+    """Keep school-specific uncertainty from soft-locking a handoff-ready Major stage."""
+    if (
+        profile.field.confidence > DONE_CONFIDENCE_THRESHOLD
+        and (
+            profile.curriculum_style.confidence > DONE_CONFIDENCE_THRESHOLD
+            or profile.required_skills_coverage.confidence > DONE_CONFIDENCE_THRESHOLD
+        )
+        and _is_product_ba_ux_mis_handoff(profile, messages)
+    ):
+        return profile.model_copy(
+            update={
+                "curriculum_style": _floor_if_near_done(profile.curriculum_style),
+                "required_skills_coverage": _floor_if_near_done(profile.required_skills_coverage),
+            }
+        )
+    return profile
+
+
 def _run_web_research(packet: MajorResearch) -> MajorResearch:
     bucket = (packet.domain_bucket or "none").strip().lower()
     allowed_domains = list(DOMAIN_BUCKETS.get(bucket, ()))
@@ -196,7 +274,8 @@ def confident_node(state: PathFinderState) -> dict:
     response = confident_llm.invoke([SystemMessage(MAJOR_CONFIDENT_PROMPT.format(
         major=major or "",
     ))] + messages)
-    return {PROFILE_KEY: response.major.model_dump()}
+    adjusted = _apply_major_handoff_floor(response.major, messages)
+    return {PROFILE_KEY: adjusted.model_dump()}
 
 
 def reopen_invalidator_node(state: PathFinderState) -> dict:

@@ -1,14 +1,26 @@
 # PathFinder Evaluation Pipeline
 
-`eval/HOW_TO_USE.md` is the single official workflow for creating, running, and closing evaluation work in this repo.
+This repo file is the local runner quick reference for PathFinder evaluation.
+
+Canonical evaluation workflow and reports live in the vault:
+
+```text
+D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\
+```
+
+Use the vault docs as the source of truth:
+
+- `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\README.md`
+- `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\eval_how_to_use.md`
 
 Use this file for:
-- the evaluation workflow
-- the production-first evaluation rules
-- runner commands and trace locations
-- the context docs required before starting
+- repo-local runner commands
+- repo-local trace locations
+- executable dataset conventions
 
-Other docs may hold evaluation context or stage-specific findings, but they should point back here for the actual pipeline.
+Do not create new mirrored evaluation reports in this repo. `eval/` is an executable and evidence workspace for scripts, JSONL datasets, raw traces, manifests, scratch messages, and temporary reproduction artifacts. Evaluation reports, audit logs, workflow docs, and stage findings belong in the vault evaluation directory. The only documentation intentionally mirrored between vault and repo is the dev log.
+
+Other repo docs may hold local runner notes, but they should point back to the vault for the actual pipeline and report history.
 
 Sub-orchestrator-only prompt and memory-maintenance audits now use a separate focused lane:
 - `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\sub_orchestrator_focus_eval_how_to_use.md`
@@ -39,6 +51,44 @@ python eval\live_session_probe.py --help
 
 It supports restoring a saved trace state, starting/stopping trace capture, sending one chat turn, and printing compact stage state. For Vietnamese input, prefer `--message-file` with a UTF-8 file; embedding non-ASCII text inside a PowerShell here-string piped to Python can corrupt accents before the backend receives the message.
 
+### User-Like Frontend Eval With Data Auditor
+
+Use this lane when the mission is to act like a student in the real frontend while preserving a compact audit trail.
+
+Cost-control rule:
+
+- Define the target boundary before the first turn: one stage completion, one stage transition, or one named blocker.
+- Stop at that boundary. If the next stage exposes new bugs, record them as next-cycle debt instead of patching them inside the same live run.
+- A live operation may patch and rerun the same boundary, but it should not harden multiple stages in one pass unless the user explicitly expands the mission.
+- Default stop condition after a fix: two runs only, one reproduction run and one verification run. Add extra `-rN` runs only when the first verification exposes a bug in the same boundary.
+- When a patch proves the target boundary but reveals the next stage is weak, write the report and stop.
+
+1. Create a named human profile and mission before opening the browser.
+2. Seed only the stages that are not under test; record the seed profile in the run report.
+3. Start backend trace capture before the first live turn.
+4. Drive the UI with `agent-browser batch --bail` for short sequential actions such as click, fill, and Enter.
+5. After each turn, check only:
+   - latest assistant message
+   - compact state from `eval/live_session_probe.py state`
+   - trace count when a patch/restart boundary is near
+6. Check Profile and Stage tabs every 5 turns, or immediately after a stage transition.
+7. When a blocker is found, stop the active trace, patch, restart, and restore the last known-good trace into a new `-rN` session. Do not mix pre-patch and post-patch evidence in one trace folder.
+8. Spawn one data-auditor worker when raw trace volume is high. The worker owns compact source tables and flaw ledgers; the main agent owns runtime fixes and the final user-facing report.
+9. Close the session with:
+   - trace IDs and coverage
+   - bugs fixed
+   - remaining flaws
+   - commands/tests run
+   - vault evaluation report path
+   - repo evidence paths only when needed for reproduction
+   - dev-log day-file update mirrored between vault and repo
+
+Use this split to keep the session inside budget:
+
+- `frontend UX run`: real browser, minimal patching, stop at target boundary.
+- `prompt/data-agent hardening`: restored trace with `eval/live_session_probe.py`, no browser except final smoke.
+- `data auditor`: compact trace evidence and flaw ledger only; no code/prompt edits.
+
 ---
 
 ## Available Context
@@ -53,7 +103,8 @@ Read these before non-trivial evaluation work:
 - Stage prompt rules: `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\prompt\docs\stage_prompt.md`
 - Output prompt rules: `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\prompt\docs\output_prompt_architecture.md`
 - Prompt implementation guide: `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\prompt\how to\production_system_prompts.md`
-- Evaluation umbrella log: `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\stage_evaluation.md`
+- Evaluation domain index: `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\README.md`
+- Evaluation workflow: `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\eval_how_to_use.md`
 
 Use stage-specific evaluation logs when relevant:
 
@@ -208,8 +259,10 @@ This is required when the hardened behavior could alter the product's tone, aggr
 When the cycle is complete:
 - update the stage-specific evaluation log
 - update `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\context\docs\CURRENT_CONTEXT.md`
-- update `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\DEV_LOG.md` if the decision should persist
-- mirror the same dev-log entry into `D:\ANHDUC\Path_finder\logs\DEV_LOG.md`
+- write any evaluation report or audit log in `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\evaluation\`
+- update the current canonical dev-log day file under `D:\ANHDUC\ADUC_vault\ADUC\projects\pathfinder\sources\docs\dev-log\days\` if the decision should persist
+- mirror only that dev-log day-file update into `D:\ANHDUC\Path_finder\logs\dev\days\`
+- rebuild both `DEV_LOG.md` indexes after the day-file update
 - update canonical architecture or state docs in the vault if contracts changed
 
 Production-ready requires all 3 rounds to be complete for the target stage:

@@ -75,6 +75,7 @@ def _merge_domains(*groups: tuple[str, ...]) -> tuple[str, ...]:
 
 
 DOMAIN_BUCKETS: dict[str, tuple[str, ...]] = {
+    "official_program": UNIVERSITY_OFFICIAL_DOMAINS,
     "admissions": _merge_domains(UNIVERSITY_OFFICIAL_DOMAINS, UNIVERSITY_ADMISSIONS_DOMAINS),
     "tuition_roi": UNIVERSITY_OFFICIAL_DOMAINS,
     "prestige_gate": (),
@@ -82,6 +83,15 @@ DOMAIN_BUCKETS: dict[str, tuple[str, ...]] = {
     "none": (),
 }
 VALID_PROBE_FIELDS = {"target_school", "prestige_requirement", "campus_format"}
+SCHOOL_DOMAIN_MARKERS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("fpt",), ("fpt.edu.vn",)),
+    (("ueh",), ("ueh.edu.vn",)),
+    (("uel",), ("uel.edu.vn",)),
+    (("rmit",), ("rmit.edu.vn",)),
+    (("usth",), ("usth.edu.vn",)),
+    (("bach khoa", "hcmut"), ("hcmut.edu.vn",)),
+    (("vnu", "dai hoc quoc gia"), ("vnu.edu.vn", "vnuhcm.edu.vn")),
+)
 
 
 def get_stage_reasoning(state: PathFinderState) -> StageReasoning:
@@ -175,9 +185,28 @@ def _collect_source_urls(response) -> list[str]:
     return [hit.url for hit in response.hits if hit.url]
 
 
+def _narrow_domains_for_named_school(query: str, allowed_domains: list[str]) -> list[str]:
+    if not allowed_domains:
+        return allowed_domains
+
+    query_lower = (query or "").lower()
+    for markers, domains in SCHOOL_DOMAIN_MARKERS:
+        if not any(marker in query_lower for marker in markers):
+            continue
+
+        narrowed = [domain for domain in allowed_domains if domain in domains]
+        if narrowed:
+            return narrowed
+
+    return allowed_domains
+
+
 def _run_web_research(packet: UniResearch) -> UniResearch:
     bucket = (packet.domain_bucket or "none").strip().lower()
-    allowed_domains = list(DOMAIN_BUCKETS.get(bucket, ()))
+    allowed_domains = _narrow_domains_for_named_school(
+        packet.search_query,
+        list(DOMAIN_BUCKETS.get(bucket, ())),
+    )
     response = search_web(
         SearchRequest(
             query=packet.search_query,

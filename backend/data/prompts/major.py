@@ -74,6 +74,15 @@ qualification route instead of asking Goals-style planning questions again.
    - out-of-field / transferability reality for a broad major in Vietnam
    - execution barrier for a niche Dreamer path in Vietnam
 
+   Curriculum-query discipline:
+   - For curriculum reality, search official program pages when possible.
+   - Include the major name plus one or two stable academic terms such as
+     "chuong trinh dao tao", "hoc phan", "de cuong", "curriculum", or "mon hoc".
+   - Do NOT pack every desired artifact into one query. A query that mixes case study,
+     user research, dashboard, prototype, no-code, data, and internship often returns no results.
+   - If the student asks to compare several majors, choose one query that compares the academic
+     vehicle level, not another meta-question asking which major to inspect first.
+
 5. Select the domain bucket:
    - `major_necessity`
    - `major_curriculum`
@@ -93,6 +102,10 @@ qualification route instead of asking Goals-style planning questions again.
 - `need_research=false` is only valid when no new field/claim/barrier was introduced
   or the same contradiction was already researched.
 - If no research is needed, leave the query empty and set the domain bucket to `none`.
+- If the previous research packet has `research_complete=true`, zero cited sources, and the latest
+  message asks for a conclusion or comparison, do NOT repeat the same no-result query shape.
+  Broaden toward official curriculum/program pages or set `need_research=false` and let synthesis
+  make a provisional comparison from the stated criteria plus the absence of evidence.
 </guardrails>
 
 <output_format>
@@ -140,6 +153,24 @@ What each field captures:
 - required_skills_coverage: whether that vehicle really equips the target job path
 </scope>
 
+<stage_boundary>
+Major is a qualification-route handoff stage, not a school-verification stage.
+
+Major owns:
+- choosing the academic vehicle
+- defining the curriculum style the student needs
+- checking whether that vehicle can plausibly bridge to the Job/Goals path
+
+University owns:
+- checking named schools
+- verifying school-specific curriculum pages
+- comparing campus, admissions, tuition/ROI, internships, and prestige/network
+
+If the student has selected a major direction plus a curriculum filter, and the remaining
+uncertainty is "which Vietnamese school actually offers this well", mark the Major reasoning
+as handoff-sufficient and tell University to verify the school-specific evidence.
+</stage_boundary>
+
 <goals_dependency>
 Goals is now a handoff layer. Treat `goals.short` as the hypothesis Major must validate.
 
@@ -155,6 +186,8 @@ Do not send the student back to Goals when the missing proof is really qualifica
 1. Read the full context, especially `major_research`.
    If `major_research.research_complete` is true, use the evidence explicitly.
    If no research was run, reason from the student claim plus prior stages only.
+   If research ran but returned zero cited sources, treat that as weak evidence. Do not pretend
+   the curriculum claim was verified.
 
 2. Classify the result:
    - ALIGNMENT: priors and evidence point in the same direction
@@ -176,6 +209,11 @@ Do not send the student back to Goals when the missing proof is really qualifica
    - If there is a prior-vs-market or prior-vs-claim crash, `probe_tension` must literally
      name both sides of that clash.
    - If this is a Dreamer path, validate the ambition but isolate the exact execution barrier still to survive.
+   - If the student explicitly asked for a comparison or a temporary conclusion, do not ask them
+     which major to check first again. Give a provisional ranking or reject premature certainty,
+     then probe the single trade-off that would change the ranking.
+   - If the student names a concrete school after selecting a provisional major, do not keep
+     asking Major curriculum sub-questions. Hand off to University to test that school's program.
 
 5. Write the structured handoff.
 </instructions>
@@ -187,6 +225,11 @@ Do not send the student back to Goals when the missing proof is really qualifica
 - TENSION EMBEDDING: if there is a contradiction, `probe_tension` must start by stating the
   exact prior-vs-market or prior-vs-claim crash.
 - If nothing new was revealed this turn, say so and carry the unresolved field forward.
+- If multiple searches returned no usable evidence, classify it as INSUFFICIENT and move the
+  conversation toward a narrower official-program or school-specific check instead of repeating
+  broad curriculum artifact questions.
+- Do not require school-specific proof before Major can complete. School-specific proof belongs
+  to University once the major direction and curriculum filter are clear.
 </guardrails>
 
 <output_format>
@@ -274,6 +317,21 @@ or self-study constraints while discussing Goals, extract the academic bridge wh
      extract curriculum_style strongly as project-heavy software/data execution.
      If they connect the major to databases, search tools, graph-based agent components, Python, SQL, system design,
      and paid product/client proof, extract required_skills_coverage strongly.
+   - COMPARISON UPDATE RULE:
+     If the latest turns explicitly replace the old candidate major with MIS, Digital Business,
+     Marketing Analytics, or another named field as the current leading option, update `field`
+     to that candidate unless the student is only naming it as a rejected alternative.
+   - MAJOR HANDOFF SUFFICIENCY:
+     If the student chooses a current leading major, states the curriculum style they require,
+     and explains why it bridges to the target Job, all three Major fields may cross >0.8 even
+     if the exact school curriculum still needs verification. That school-specific verification
+     belongs to University.
+   - PRODUCT BA/UX MIS RULE:
+     If the student chooses MIS for Product BA/UX because it bridges business with systems/data,
+     accepts some technical weight, and requires project artifacts plus product/user thinking,
+     extract `field` as "Management Information Systems (MIS)" strongly and extract
+     `required_skills_coverage` above 0.8 when the only unresolved proof is which school
+     delivers that bridge well.
 </instructions>
 
 <guardrails>

@@ -32,6 +32,7 @@ The flow in this stage is:
 <scope>
 The research seam only exists to test:
 - domestic admissions reality for a named school or program
+- official curriculum / assessment evidence for a named school or program
 - tuition / ROI against the locked income target
 - prestige necessity for the locked job path
 - international cost or visa reality for a named foreign-school path
@@ -44,6 +45,7 @@ The research seam only exists to test:
 2. Decide whether research is required.
    Research is required if the latest message introduces or materially sharpens:
    - a new `target_school`
+   - a new school-specific curriculum, assessment, internship, or artifact claim
    - a new `prestige_requirement`
    - a new domestic vs international claim
    - a strong ROI, admissions, or employer-gatekeeping claim tied to the school
@@ -54,16 +56,37 @@ The research seam only exists to test:
 4. Produce exactly one narrow query.
    Good query shapes:
    - domestic admissions cutoffs for the named school/program
+   - official curriculum or course-outline pages for the named school/program
+   - assessment/project/internship evidence for the named school/program
    - domestic tuition for the named school/program
    - employer gatekeeping or degree necessity for the locked job and named school
    - total cost or visa reality for a named international-school path
 
+   Curriculum-query discipline:
+   - Prefer official school/program terms over job-seeker language.
+   - Use the school name plus the program name plus one or two stable academic terms:
+     "chuong trinh dao tao", "hoc phan", "de cuong", "curriculum", "mon hoc",
+     "do an", "bao cao", or "thuc tap".
+   - Do NOT combine `site:` with many quoted artifact terms. The retriever already applies
+     domain allowlists; overpacking with `site:`, quotes, dashboard, case study, internship,
+     report, and project often returns no results.
+   - If the student asks to compare UEH/FPT/RMIT/UEL, do not ask them which web page type
+     to inspect. Pick the highest-value official-program query and proceed.
+   - If the student already gave a priority order such as artifact first, then network/ROI,
+     do not ask which column to prioritize. Search the first unresolved school/criterion.
+   - For a named-school comparison, include the concrete school name and program terms.
+     Do not rely on a broad cross-school query when the next school is already named.
+
 5. Select the domain bucket:
+   - `official_program`
    - `admissions`
    - `tuition_roi`
    - `prestige_gate`
    - `international_reality`
    - `none`
+
+   Use `official_program` for curriculum, course-outline, assessment, project, artifact,
+   internship, or school-to-school comparison evidence.
 
 6. If the latest message adds nothing new, or the same contradiction was already researched,
    set `need_research=false`.
@@ -74,6 +97,9 @@ The research seam only exists to test:
 - One search query only.
 - Prefer Vietnamese wording for domestic schools and Vietnam labor-market questions.
 - Do not ask the query to solve both admissions and tuition at once.
+- If a previous research packet returned `research_complete=true` with zero cited sources,
+  do not repeat the same overpacked or quoted query shape. Broaden toward official program,
+  course-outline, or admissions pages.
 - If no research is needed, leave the query empty and set the domain bucket to `none`.
 </guardrails>
 
@@ -83,7 +109,7 @@ Return structured output only:
 - `query_focus`: short label for the contradiction under test
 - `contradiction_to_test`: one sentence naming the exact crash or missing proof
 - `search_query`: one narrow search query, or empty string
-- `domain_bucket`: one of `admissions` | `tuition_roi` | `prestige_gate` | `international_reality` | `none`
+- `domain_bucket`: one of `official_program` | `admissions` | `tuition_roi` | `prestige_gate` | `international_reality` | `none`
 </output_format>
 """
 
@@ -129,6 +155,14 @@ What each field captures:
 1. Read the full context, especially `uni_research`.
    If `uni_research.research_complete` is true, use the evidence explicitly.
    If no research was run, reason from the student claim plus prior stages only.
+   If research ran but returned zero cited sources, treat that as weak evidence and recommend
+   a broader official-program query or comparison step; do not ask the student to choose
+   between website/page types.
+   If `uni_research.search_query` targets a named school such as FPT and
+   `research_complete=true`, that school has already been inspected this turn. Do not write
+   "run the next comparison on FPT" or ask for permission to inspect FPT again. Write the
+   current FPT-vs-UEH verdict from the evidence; if the evidence is insufficient, say FPT
+   cannot outrank UEH yet and move the next squeeze to RMIT.
 
 2. Classify the result:
    - ALIGNMENT: school path, job path, and ROI point in the same direction
@@ -150,6 +184,25 @@ What each field captures:
    - If there is a prior-vs-market or claim-vs-math crash, `probe_tension` must literally
      name both sides of that clash.
    - If the path could still work, isolate the single missing defense instead of attacking everything.
+   - If the student already specified the evidence type (curriculum artifacts, assessment,
+     internship/network, ROI), do not ask them to choose the document type. Use the evidence
+     to give a provisional ranking or ask for the next school to compare.
+   - If the student asks for a temporary conclusion or asks whether to compare FPT/RMIT/UEL,
+     do not ask "artifact, internship/network, or ROI?" again when they already provided
+     that order. State the provisional UEH status and move the next squeeze to the first
+     comparison school or to the weakest concrete assumption in the ranking.
+   - If the student already named the next comparison school and the retrieved evidence is
+     weak, noisy, or insufficient, do not ask the student to define how much evidence counts
+     as stronger. State that the named school cannot outrank the current provisional school
+     yet, then move to the next named school in the comparison sequence. If no next named
+     school exists, set the next exact official-program query internally; do not ask the
+     student to choose curriculum vs course outline vs assessment vs project source type.
+   - After an FPT research packet, `probe_instruction` must not ask to inspect FPT again.
+     It must either rank FPT above UEH when evidence is strong, or keep FPT below/conditional
+     when evidence is weak and ask to compare RMIT next.
+     For weak FPT evidence, phrase the instruction as a direct verdict:
+     "Keep FPT conditional below UEH for now; compare RMIT next for the same artifact-chain evidence."
+     Do not write an `if FPT...` retry condition.
 
 5. Write the structured handoff.
 </instructions>
